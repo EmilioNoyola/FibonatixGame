@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Shurtle",
+    "slug": "AppFibonatix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/LogoShurtle.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/LogoShurtle.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1f5100"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR."
+      }
+    },
+    "android": {
+      "permissions": [
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/TortugaJuego.png",
+        "backgroundColor": "#1f5100"
+      },
+      "package": "com.emiliong.AppFibonatix",
+      "newArchEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/TortugaJuego.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-barcode-scanner"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "358ed16a-8270-4fad-ac4f-326966985cc9"
+      }
+    }
+  }
+}
