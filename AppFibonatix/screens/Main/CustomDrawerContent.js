@@ -12,43 +12,52 @@ import { doc, getDoc } from "firebase/firestore";
 import Icon from 'react-native-vector-icons/MaterialIcons'; // Importamos los íconos de MaterialIcons
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 
 // Fuentes personalizadas
 import useCustomFonts from '../../apis/FontsConfigure';
 
-export default function CustomDrawerContent(props) {
+import { DeviceEventEmitter } from 'react-native'; // Importar DeviceEventEmitter
+
+export default function CustomDrawer(props) {
 
     // Si las fuentes no están cargadas, se retorna null
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
     if (!fontsLoaded) return null;
 
-    const [headerHeight, setHeaderHeight] = useState(0);
     const auth = getAuth();
     const db = getFirestore();
-
-    const [username, setUsername] = useState(""); // Estado para el nombre de usuario
     const user = auth.currentUser;
 
-    // Función para obtener el nombre de usuario desde Firestore
-    const getUsername = async () => {
+    const [username, setUsername] = useState(""); 
+    const [profileImage, setProfileImage] = useState(null);
+
+    // Obtener el nombre de usuario desde Firestore.
+    const getUserData = async () => {
         if (user) {
-            const userRef = doc(db, "users", user.uid); // Accede al documento del usuario
-            const userDoc = await getDoc(userRef); // Obtén el documento
+            const userRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userRef);
             if (userDoc.exists()) {
-                setUsername(userDoc.data().username); // Establece el nombre de usuario
-            } else {
-                console.log("No hay datos para este usuario");
+                setUsername(userDoc.data().username);
+                setProfileImage(userDoc.data().profileImage || null); // Asegurar que haya una imagen
             }
         }
     };
 
-    // Llama a getUsername cuando el componente se monta o cuando el usuario cambia
+    // Llama a getUsername cuando el componente se monta o cuando el usuario cambia.
     useEffect(() => {
         if (user) {
-            getUsername();
+            getUserData();
         }
+
+        // Escuchar el evento cuando la imagen de perfil cambia
+        const updateProfileImageListener = DeviceEventEmitter.addListener("profileImageUpdated", (newImage) => {
+            setProfileImage(newImage);
+        });
+
+        return () => {
+            updateProfileImageListener.remove();
+        };
     }, [user]);
 
     // Cerrar sesión.
@@ -61,7 +70,7 @@ export default function CustomDrawerContent(props) {
     };
 
     return (
-        < >
+        <>
             <StatusBar
                 barStyle="dark-content"
                 translucent={true}
@@ -69,21 +78,24 @@ export default function CustomDrawerContent(props) {
             />
 
             <View style={styles.container} onLayout={onLayoutRootView}>
-
                 <View style={styles.headerContent}>
                     <View style={styles.header}></View>
                     <View style={styles.circle}>
-                        <Icon name="account-circle" size={160} color="#706103" />
+                        {profileImage ? (
+                            <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                        ) : (
+                            <Icon name="account-circle" size={160} color="#706103" />
+                        )}
                     </View>
                     <View>
-                        {user ? (
+                        { user ? (
                             <>
                                 <Text style={styles.TextUser}>{username}</Text>
                                 <Text style={styles.TextEmail}>{user.email}</Text>
                             </>
                         ) : (
                             <Text style={styles.TextEmail}>No hay usuario autenticado.</Text>
-                        )}
+                        ) }
                     </View>
                 </View>
 
@@ -91,9 +103,7 @@ export default function CustomDrawerContent(props) {
                     {...props}
                     contentContainerStyle={[styles.content]}
                 >
-
-                    <View style={styles.containerButton}>
-
+                    <View>
                         <Pressable                             
                             style={({pressed}) => [
                                 {
@@ -103,12 +113,10 @@ export default function CustomDrawerContent(props) {
                             ]}
                             onPress={() => props.navigation.navigate('ParentalControl')}
                         >
-
                             <View style={styles.row}>
                                 <FontAwesome6 name="shield-heart" size={40} color="#594d02" style={styles.icon} />
                                 <Text style={styles.TextButton}>Control Parental</Text>
                             </View>
-
                         </Pressable>
 
                         <Pressable                             
@@ -120,12 +128,10 @@ export default function CustomDrawerContent(props) {
                             ]}
                             onPress={() => props.navigation.navigate('Settings')}
                         >
-
                             <View style={styles.row}>
                                 <MaterialIcons name="settings" size={45} color="#594d02" style={styles.icon} />
                                 <Text style={styles.TextButton}>Ajustes</Text>
                             </View>
-
                         </Pressable>
 
                         <Pressable                             
@@ -137,49 +143,38 @@ export default function CustomDrawerContent(props) {
                             ]}
                             onPress={() => props.navigation.navigate('SupportAndHelp')}
                         >
-
                             <View style={styles.row}>
                                 <Entypo name="help-with-circle" size={40} color="#594d02" style={styles.icon} />
                                 <Text style={styles.TextButton}>Ayuda y Soporte</Text>
                             </View>
-
                         </Pressable>
-
                     </View>
 
                     <View style={styles.containerLogoutButton}>
-
                         <Pressable 
-                                
                             style={({pressed}) => [
                                 {
                                     backgroundColor: pressed ? '#C63C29' : '#D7513F',
                                 },
                                     styles.logoutButton,
                             ]}
-
-                                onPress={handleSignOut}
-                            
+                            onPress={handleSignOut}
                         >
                             <Text style={styles.logoutText}>CERRAR SESIÓN</Text>
                         </Pressable>
-
                     </View>
-
                 </DrawerContentScrollView>
 
                 <View style={styles.footer}>
                     <View style={styles.circleLogo}>
-                        <Image source={require('../../assets/LogoFibonatix.png')} style={styles.image} />
+                        <Image source={require('../../assets/img/LogoFibonatix.png')} style={styles.image} />
                     </View>
-                    <Text style={styles.textFooter}>Fibonatix</Text>
+                    <Text style={styles.textFooter}>Frognova</Text>
                 </View>
-
             </View>
         </>
     );
 }
-
 
 const styles = StyleSheet.create({
 
@@ -211,6 +206,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center', // Centra el ícono dentro del círculo
     },
 
+    profileImage: {
+        width: 160,
+        height: 160,
+        borderRadius: 80, // Para que sea un círculo
+    },
+
     TextUser: {
         fontSize: 34,
         color: '#706103',
@@ -232,7 +233,6 @@ const styles = StyleSheet.create({
         alignContent: 'center',
         justifyContent: 'center',
         alignItems: 'center'
-
     },
 
     Button: {

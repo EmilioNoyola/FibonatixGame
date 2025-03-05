@@ -1,13 +1,13 @@
 {
   "expo": {
     "name": "Shurtle",
-    "slug": "AppFibonatix",
+    "slug": "fibonatixgameapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/LogoShurtle.png",
+    "icon": "./assets/img/LogoShurtle.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/LogoShurtle.png",
+      "image": "./assets/img/LogoShurtle.png",
       "resizeMode": "contain",
       "backgroundColor": "#1f5100"
     },
@@ -19,17 +19,18 @@
     },
     "android": {
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/TortugaJuego.png",
+        "foregroundImage": "./assets/img/TortugaJuego.png",
         "backgroundColor": "#1f5100"
       },
       "package": "com.emiliong.AppFibonatix",
       "newArchEnabled": true
     },
     "web": {
-      "favicon": "./assets/TortugaJuego.png"
+      "favicon": "./assets/img/TortugaJuego.png"
     },
     "plugins": [
       "expo-font",
@@ -37,8 +38,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "358ed16a-8270-4fad-ac4f-326966985cc9"
+        "projectId": "2987d78a-f723-49c9-8245-bd709d0a0828"
       }
-    }
+    },
+    "owner": "frognovainc"
   }
 }

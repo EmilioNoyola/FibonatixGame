@@ -8,13 +8,13 @@ import { getFirestore } from "firebase/firestore";
 
 // Configuración de tu aplicación Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDXtmjGAa9lGO-80Qp2KGCecmUUejUj4VI",
+  apiKey: "AIzaSyDPbEunOLHDzlIi5VDN7kp6RaNrRezv25M",
   authDomain: "appfibonatix.firebaseapp.com",
   projectId: "appfibonatix",
-  storageBucket: "appfibonatix.appspot.com",
+  storageBucket: "appfibonatix.firebasestorage.app",
   messagingSenderId: "538060749315",
-  appId: "1:538060749315:web:f49f1431fa42345fa52c36",
-  measurementId: "G-GZ2Z76MG18"
+  appId: "1:538060749315:web:f47dd6b3621db81ca52c36",
+  measurementId: "G-TQX2SW422C"
 };
 
 // Inicializa Firebase

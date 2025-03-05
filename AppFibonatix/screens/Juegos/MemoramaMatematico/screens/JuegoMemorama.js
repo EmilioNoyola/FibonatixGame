@@ -316,7 +316,7 @@ export default function JuegoMemorama({ navigation, route }) {
           {bestScore !== null && (
             <View style={JuegoMemoramaStyles.puntajeContainer}>
               <Image 
-                source={require("../../../../assets/Trofeo.png")} 
+                source={require("../../../../assets/img/Trofeo.png")} 
                 style={JuegoMemoramaStyles.image} 
                 resizeMode="contain"
               />
@@ -325,7 +325,7 @@ export default function JuegoMemorama({ navigation, route }) {
           )}
           <View style={JuegoMemoramaStyles.puntajeContainer}>
             <Image 
-              source={require("../../../../assets/TortugaJuego.png")} 
+              source={require("../../../../assets/img/TortugaJuego.png")} 
               style={JuegoMemoramaStyles.image} 
               resizeMode="contain"
             />

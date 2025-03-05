@@ -13,7 +13,7 @@ export default function Animal({ x, y, turtleCount }) {
         styles.animal
         ]}
     >
-      <Image source={require("../TortugaJuego.png")} style={styles.turtle} />
+      <Image source={require("../img/TortugaJuego.png")} style={styles.turtle} />
       <Text style={styles.count}>{turtleCount}</Text>
     </View>
   );

@@ -5,7 +5,7 @@ import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
 // Fuentes personalizadas.
 import useCustomFonts from '../apis/FontsConfigure';
 
-const image = require('../assets/tortuga.png');
+const image = require('../assets/img/tortuga.png');
 
 const LoadingScreen = ({ textoAdicional }) => {
 

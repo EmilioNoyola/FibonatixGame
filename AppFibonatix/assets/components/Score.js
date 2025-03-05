@@ -13,7 +13,7 @@ export default function Score({ score, highScore }) {
       {/* Sección de highScore */}
       <View style={styles.scoreContainer}>
         <Image 
-          source={require("../Trofeo.png")} 
+          source={require("../img/Trofeo.png")} 
           style={styles.image} 
           resizeMode="contain" // Ajusta la imagen sin cortarla
         />
@@ -23,7 +23,7 @@ export default function Score({ score, highScore }) {
       {/* Sección de score */}
       <View style={styles.scoreContainer}>
         <Image 
-          source={require("../TortugaJuego.png")} 
+          source={require("../img/TortugaJuego.png")} 
           style={styles.image2} 
           resizeMode="contain" // Ajusta la imagen sin cortarla
         />

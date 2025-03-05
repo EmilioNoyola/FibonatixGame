@@ -1,17 +1,18 @@
+// Componentes de React
 import React from 'react';  
 import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+
+// Navegación
 import { useNavigation } from '@react-navigation/native';
-import useCustomFonts from '../../apis/FontsConfigure';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
-
-import AntDesign from '@expo/vector-icons/AntDesign';
-import EvilIcons from '@expo/vector-icons/EvilIcons';
-
 import Collapsible from 'react-native-collapsible';
 
+// Fuentes
+import useCustomFonts from '../../apis/FontsConfigure';
 
-import { useState, useEffect } from 'react';
+// Íconos
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Alertas Personalizadas
 import CustomAlert from '../../apis/Alertas';
@@ -40,7 +41,6 @@ const groupedSections = [
     },
 ];
 
-
 export default function SupportAndHelp(props) {
 
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
@@ -50,7 +50,6 @@ export default function SupportAndHelp(props) {
 
     // Estado para controlar qué preguntas están expandidas
     const [expandedSections, setExpandedSections] = useState([]);
-
     const toggleSection = (id) => {
         setExpandedSections((prev) =>
             prev.includes(id) ? prev.filter((sectionId) => sectionId !== id) : [...prev, id]
@@ -62,43 +61,14 @@ export default function SupportAndHelp(props) {
     const showAlert = (type) => setAlerts({ type, visible: true });
     const hideAlert = () => setAlerts({ ...alerts, visible: false });
 
-    // Funciones al confirmar la alerta.
+    // Confirmar la alerta.
     const handleConfirmAlert = async () => {
         switch (alerts.type) {
-            case "resetProgress":
-                await handleResetProgress();
-                hideAlert();
-                break;
-            case "progressReset":
-                hideAlert();
-                break;
-            default:
-                hideAlert();
-                break;
+            case "resetProgress": await handleResetProgress(); hideAlert(); break;
+            case "progressReset": hideAlert(); break;
+            default: hideAlert(); break;
         }
-    };
-    
-    const handleResetProgress = async () => {
-        try {
-            const firstGameReset = await resetFirstGameProgress();
-            const secondGameReset = await resetSecondGameProgress();
-    
-            if (firstGameReset && secondGameReset) {
-                showAlert("progressReset"); // Mostrar alerta de confirmación
-            } else {
-                Alert.alert(
-                    "Error",
-                    "Hubo un problema al intentar eliminar el progreso. Intenta nuevamente."
-                );
-            }
-        } catch (error) {
-            console.error("Error al reiniciar el progreso:", error);
-            Alert.alert(
-                "Error",
-                "Ocurrió un error inesperado. Intenta nuevamente."
-            );
-        }
-    };    
+    }; 
 
     // Titulo de las alertas
     const mostrarTituloAlerta = (type) => {
@@ -137,6 +107,7 @@ export default function SupportAndHelp(props) {
 
     return (
         <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+
             <StatusBar
                 barStyle="dark-content"
                 translucent={true}
@@ -157,48 +128,46 @@ export default function SupportAndHelp(props) {
             <View style={styles.content}>
                 <ScrollView
                     contentContainerStyle={{
-                        padding: 20, // Espacio interno del ScrollView
+                        padding: 20, 
                     }}
-                    style={styles.scrollView} // Centra el propio ScrollView
+                    style={styles.scrollView} 
                 >
-
-                {groupedSections.map((section, index) => (
-                    <View key={index} style={styles.sectionContainer}>
-                        <View style={styles.titleContainer}>
-                            <Text style={styles.title}>{section.category}</Text>
-                        </View>
-
-                        {section.items.map((item) => (
-                            <View key={item.id} style={styles.section}>
-                                <Pressable
-                                    onPress={() => toggleSection(item.id)}
-                                    style={styles.questionContainer}
-                                >
-                                    <Text style={styles.question}>{item.question}</Text>
-                                    <Ionicons
-                                        name={expandedSections.includes(item.id) ? 'chevron-up-outline' : 'chevron-down-outline'}
-                                        size={24}
-                                        color="#40916C"
-                                    />
-                                </Pressable>
-                                <Collapsible collapsed={!expandedSections.includes(item.id)}>
-                                    <View style={styles.answerContainer}>
-                                        <Text style={styles.answer}>{item.answer}</Text>
-                                    </View>
-                                </Collapsible>
+                    {groupedSections.map((section, index) => (
+                        <View key={index} style={styles.sectionContainer}>
+                            <View style={styles.titleContainer}>
+                                <Text style={styles.title}>{section.category}</Text>
                             </View>
-                        ))}
-                    </View>
-                ))}
 
+                            {section.items.map((item) => (
+                                <View key={item.id} style={styles.section}>
+                                    <Pressable
+                                        onPress={() => toggleSection(item.id)}
+                                        style={styles.questionContainer}
+                                    >
+                                        <Text style={styles.question}>{item.question}</Text>
+                                        <Ionicons
+                                            name={expandedSections.includes(item.id) ? 'chevron-up-outline' : 'chevron-down-outline'}
+                                            size={24}
+                                            color="#40916C"
+                                        />
+                                    </Pressable>
+                                    <Collapsible collapsed={!expandedSections.includes(item.id)}>
+                                        <View style={styles.answerContainer}>
+                                            <Text style={styles.answer}>{item.answer}</Text>
+                                        </View>
+                                    </Collapsible>
+                                </View>
+                            ))}
+                        </View>
+                    ))}
                 </ScrollView>
             </View>
 
             <View style={styles.footer}>
                 <View style={styles.circle}>
-                    <Image source={require('../../assets/LogoFibonatix.png')} style={styles.image} />
+                    <Image source={require('../../assets/img/LogoFibonatix.png')} style={styles.image} />
                 </View>
-                <Text style={styles.textFooter}>Fibonatix</Text>
+                <Text style={styles.textFooter}>Frognova</Text>
             </View>
 
             {alerts.visible && (
@@ -223,7 +192,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#D8F3DC',
     },
-
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -232,11 +200,9 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 15,
         borderBottomRightRadius: 15,
     },
-
     containerButtonBack: {
         left: 20,
     },
-
     ButtonBack: {
         backgroundColor: '#D8F3DC',
         borderRadius: 70,
@@ -245,31 +211,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     containerTextHeader: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     textHeader: {
         fontSize: 35,
         color: 'white',
         fontFamily: 'Quicksand',
         textAlign: 'center',
     },
-
     content: {
         flex: 1, // Ocupa el espacio restante entre el header y el footer
         alignItems: 'center', // Centra el ScrollView horizontalmente
     },
-    
     scrollView: {
         width: '100%', // Ajusta el ancho del ScrollView
         borderRadius: 10, // Opcional: estilo adicional
         marginBottom: 50,
     },
-
     sectionContainer: {
         marginBottom: 20,
     },
@@ -309,7 +270,6 @@ const styles = StyleSheet.create({
         color: '#666',
         fontFamily: 'Quicksand_Regular',
     },
-
     footer: {
         height: 120,
         backgroundColor: '#74C69D',
@@ -319,7 +279,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         position: 'relative',
     },
-
     circle: {
         width: 100,
         height: 100,
@@ -330,12 +289,10 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -50,
     },
-
     image: {
         width: 85,
         height: 85,
     },
-
     textFooter: {
         fontSize: 30,
         color: 'white',

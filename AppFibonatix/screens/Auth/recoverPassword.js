@@ -24,7 +24,7 @@ export default function RecoverPassword(props) {
 
             <View style={recoverPasswordStyles.container}>
 
-            <ImageBackground source={require('../../assets/tortugas_background.jpg')} style={recoverPasswordStyles.backgroundImage} />
+            <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={recoverPasswordStyles.backgroundImage} />
 
                 <View style={recoverPasswordStyles.header}>
                     <Text style={recoverPasswordStyles.headerText}>RECUPERAR CONTRASEÑA</Text>

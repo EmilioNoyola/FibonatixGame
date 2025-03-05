@@ -362,7 +362,7 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
 
           <View style={styles.puntajeContainer}>
               <Image 
-                source={require("../../../../assets/TortugaJuego.png")} 
+                source={require("../../../../assets/img/TortugaJuego.png")} 
                 style={styles.image} 
                 resizeMode="contain"
               />
@@ -373,7 +373,7 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
                 {bestTime !== null && (
                   <Text style={styles.bestTime}>
                       <Image 
-                        source={require("../../../../assets/Trofeo.png")} 
+                        source={require("../../../../assets/img/Trofeo.png")} 
                         style={styles.image} 
                         resizeMode="contain"
                       />

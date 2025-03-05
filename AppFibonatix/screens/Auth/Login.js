@@ -135,7 +135,7 @@ export default function Login(props) {
 
             <View style={LoginStyles.container}>
 
-                <ImageBackground source={require('../../assets/tortugas_background.jpg')} style={LoginStyles.backgroundImage} />
+                <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={LoginStyles.backgroundImage} />
 
                 <View style={LoginStyles.header}>
 

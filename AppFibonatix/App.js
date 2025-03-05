@@ -1,4 +1,4 @@
-import Navigation from "./screens/MainFlow/Navigation";
+import Navigation from "./screens/Main/Navigation";
 
 export default function App() {
 

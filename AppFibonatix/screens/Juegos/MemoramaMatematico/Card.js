@@ -8,7 +8,7 @@ export default function Card({onPress, isTurnedOver, children}) {
         {isTurnedOver ? (
             <Text style={styles.text}>{children}</Text>
         ) : (
-            <Text style={styles.textCardDown}><Image source={require("../../../assets/TortugaJuego.png")} style={{ width: 50, height: 30 }}/></Text>
+            <Text style={styles.textCardDown}><Image source={require("../../../assets/img/TortugaJuego.png")} style={{ width: 50, height: 30 }}/></Text>
         )}
       </Pressable>
     );

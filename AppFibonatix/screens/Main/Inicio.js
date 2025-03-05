@@ -9,7 +9,7 @@ import useCustomFonts from '../../apis/FontsConfigure';
 
 export default function Inicio(props) {
 
-    const image = require('../../assets/tortuga.png');
+    const image = require('../../assets/img/tortuga.png');
 
     // Si las fuentes no están cargadas, se retorna null
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();

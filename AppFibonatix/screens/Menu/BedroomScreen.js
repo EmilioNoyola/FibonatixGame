@@ -1,73 +1,156 @@
-// Componentes utilizados de React Native.
-import React from 'react';  
-import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet } from 'react-native';
+// Componentes de React
+import React, { useState, useEffect, useRef } from 'react';  
+import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Animated, BackHandler } from 'react-native';
 
+// Navegación
 import { useNavigation } from '@react-navigation/native';
 
+// Fuentes
 import useCustomFonts from '../../apis/FontsConfigure';
 
-import { MaterialIcons } from '@expo/vector-icons'; // Si estás usando Expo; si no, puedes usar otro ícono.
+// Íconos
+import { MaterialIcons } from '@expo/vector-icons';
+import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
+import { FocusOn, FocusOff } from '../../assets/img-svg';
 
-import { FaceA, FaceB, FaceC, FaceD } from '../../assets/img-svg';
+// Componente de Misiones y Personalidad
+import MissionsScreen from './MissionsScreen';
+
+// Foco de sueño
+import { useFocus } from '../../apis/FocusContext';
 
 export default function BeedRoomScreen(props) {
-
+    
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-
-    // Si las fuentes no están cargadas, se retorna null
     if (!fontsLoaded) return null;
 
     const navigation = useNavigation();
 
+    // Estado para alternar entre FocusOn y FocusOff
+    const { isFocusOn, setIsFocusOn } = useFocus(); // Usa el contexto 
+
+    // Estado local para controlar la visibilidad del overlay
+    const [showOverlay, setShowOverlay] = useState(false);
+
+    // Valor animado para la opacidad del overlay
+    const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+    // Estado para evitar múltiples toggles consecutivos
+    const [toggleDisabled, setToggleDisabled] = useState(false);
+
+    // Efecto para animar el overlay al cambiar isFocusOn
+    useEffect(() => {
+        if (!isFocusOn) {
+            // Cuando se activa FocusOff: mostramos y animamos el overlay (fade in)
+            setShowOverlay(true);
+            Animated.timing(overlayOpacity, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => {
+                setToggleDisabled(false); // Rehabilita el toggle al finalizar el fade in
+            });
+        } else {
+            // Cuando se desactiva FocusOff: animamos el fade out y luego ocultamos el overlay
+            Animated.timing(overlayOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => {
+                setShowOverlay(false);
+                setToggleDisabled(false); // Rehabilita el toggle al finalizar el fade out
+            });
+        }
+    }, [isFocusOn, overlayOpacity]);    
+
+    useEffect(() => {
+        const onBackPress = () => {
+          // Si FocusOff está activo, bloquea el retroceso
+            if (!isFocusOn) {
+                return true; // Impide el comportamiento por defecto
+            }
+                return false;
+        };
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [isFocusOn]);
+
+    // Función para alternar el estado
+    const toggleFocus = () => {
+        if (toggleDisabled) return; // Evita múltiples presiones seguidas
+        setToggleDisabled(true);
+        setIsFocusOn(prev => !prev);
+    };    
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+            if (!isFocusOn) {
+                e.preventDefault();
+            }
+        });
+        return () => unsubscribe();
+    }, [isFocusOn, navigation]);        
+
     return (
-        <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.container} 
+                pointerEvents={!isFocusOn ? "none" : "auto"}
+            >
+                <StatusBar
+                    barStyle="dark-content"
+                    translucent={true}
+                    backgroundColor="transparent"
+                />
 
-            <StatusBar
-                barStyle="dark-content"
-                translucent={true}
-                backgroundColor="transparent"
-            />
+                <View style={styles.header}>
+                    <View style={{ marginHorizontal: 10, marginTop: 30 }}>
+                        <View>
+                            <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
+                                <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
+                                    <MaterialIcons name="menu" size={30} color="white" />
+                                </Pressable>
 
-            <View style={styles.header}>
-
-            <View style={{marginHorizontal: 10, marginTop: 30}}>
-
-                <View >
-                    <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
-                        <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
-                            <MaterialIcons name="menu" size={30} color="white" />
-                        </Pressable>
-
-                        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-
-                            <View style={styles.containerEmotion}>
-
-                                <View style={styles.Emotion}>
-
-                                    <FaceD />
-
+                                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                                    <View style={styles.containerEmotion}>
+                                        <View style={styles.Emotion}>
+                                            <SimpleLineIcons name="energy" size={40} color="#15448e" />
+                                        </View>
+                                    </View>
+                                    <View style={styles.containerBarEmotion}>
+                                        <View style={styles.BarEmotion}></View>
+                                    </View>
                                 </View>
-                                
                             </View>
-                            <View style={styles.containerBarEmotion}>
-
-                                <View style={styles.BarEmotion}></View>
-
-                            </View>
-
                         </View>
 
+                        <View style={{ marginTop: -5 }}>
+                            <Text style={styles.textHeader}>Dormitorio</Text>
+                        </View>
                     </View>
                 </View>
 
-                <View style={{marginTop: -5}}>
-                    <Text style={styles.textHeader}>Dormitorio</Text>
+                <View style={styles.containerSleep}>
+                    <View style={styles.containerFocus}>
+                        { isFocusOn && (
+                            <Pressable style={styles.Focus} onPress={toggleFocus}>
+                                <FocusOn />
+                            </Pressable>
+                        )}
+                    </View>
+
+                    <View style={styles.containerMisions}>
+                        <MissionsScreen />
+                    </View>
                 </View>
-
             </View>
 
-            </View>
-            
+            {showOverlay && (
+                <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+                    <Pressable style={styles.Focus2} onPress={toggleFocus} pointerEvents="auto">
+                        <FocusOff />
+                    </Pressable>
+                </Animated.View>
+            )}
         </SafeAreaView>
     );
 }
@@ -76,11 +159,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#B7E0FE',
+        justifyContent: 'space-between',
     },
-
     header: {
         backgroundColor: '#478CDB',
-        height: 164, // Altura fija para el encabezado
+        height: 164,
         borderBottomLeftRadius: 15,
         borderBottomRightRadius: 15,
     },
@@ -99,18 +182,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     containerEmotion: {
-        backgroundColor: 'black',
+        backgroundColor: '#15448e',
         borderRadius: 80,
         width: 60,
         height: 60,
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 20,
+        marginLeft: 10,
         zIndex: 1,
     },
-
     Emotion: {
-        backgroundColor: '#FEFA82',
+        backgroundColor: '#86cee9',
         borderRadius: 60,
         width: 50,
         height: 50,
@@ -120,10 +202,8 @@ const styles = StyleSheet.create({
         zIndex: 1,
         position: 'absolute',
     },
-
     containerBarEmotion: {
-
-        backgroundColor: 'black',
+        backgroundColor: '#15448e',
         borderTopRightRadius: 60,
         borderBottomRightRadius: 60,
         width: 250,
@@ -131,12 +211,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'right',
         marginLeft: -10,
-
     },
-
     BarEmotion: {
-
-        backgroundColor: '#04a2e1', //
+        backgroundColor: '#04a2e1',
         borderTopRightRadius: 60,
         borderBottomRightRadius: 60,
         width: 80,
@@ -144,25 +221,73 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: -10,
-
     },
-
-    logoutButton: {
-        backgroundColor: '#ff4d4d',
-        padding: 15,
-        borderRadius: 10,
+    containerSleep: {
+        backgroundColor: '#7cc7fd',
+        width: '100%',
+        height: '60%',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        position: 'relative',
     },
-    buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    menuButton: {
-        backgroundColor: 'black',
-        borderRadius: 60,
-        width: 50,
-        height: 50,
+    containerFocus: {
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: '#B7E0FE',
+        position: 'absolute',
+        top: -100,
+        left: '50%',
+        transform: [{ translateX: -100 }],
+        zIndex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
+    Focus: {
+        width: 180,
+        height: 180,
+        borderRadius: 90,
+        backgroundColor: '#478CDB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    Focus2: {
+        width: 180,
+        height: 180,
+        borderRadius: 150,
+        marginBottom: '40%',
+        backgroundColor: '#478CDB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    containerMisions: {
+        flex: 1,
+        width: '85%',
+        marginBottom: 20,
+        backgroundColor: '#57A4FD',
+        marginTop: 120,
+        alignSelf: 'center',
+        borderRadius: 20,
+    },
+    overlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 100,
+    },    
 });

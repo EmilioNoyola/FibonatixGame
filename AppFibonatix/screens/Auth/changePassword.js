@@ -27,7 +27,7 @@ export default function ChangePassword(props) {
 
             <View style={changePasswordStyles.container}>
 
-                <ImageBackground source={require('../../assets/tortugas_background.jpg')} style={changePasswordStyles.backgroundImage} />
+                <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={changePasswordStyles.backgroundImage} />
 
                 <View style={changePasswordStyles.header}>
 

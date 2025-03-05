@@ -32,7 +32,7 @@ export default function Snake({ snake, direction }) {
           return (
             <Image
               key={index}
-              source={require("../headerSnake.png")} // Ruta de la imagen
+              source={require("../img/headerSnake.png")} // Ruta de la imagen
               style={[
                 styles.head,
                 segmentStyle,

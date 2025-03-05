@@ -1,17 +1,24 @@
+// Componentes de React
 import React from 'react';  
 import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import useCustomFonts from '../../apis/FontsConfigure';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { ScrollView, TextInput } from 'react-native-gesture-handler';
+import { useState, useEffect } from 'react';
 
+// Navegación
+import { useNavigation } from '@react-navigation/native';
+import { ScrollView } from 'react-native-gesture-handler';
+
+// Fuentes
+import useCustomFonts from '../../apis/FontsConfigure';
+
+// Íconos
+import Ionicons from '@expo/vector-icons/Ionicons';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import EvilIcons from '@expo/vector-icons/EvilIcons';
 
-import { useState, useEffect } from 'react';
-
-// Alertas Personalizadas
+// Alertas
 import CustomAlert from '../../apis/Alertas';
+
+import { Linking } from 'react-native';
 
 export default function ParentalControl(props) {
 
@@ -25,29 +32,23 @@ export default function ParentalControl(props) {
     const showAlert = (type) => setAlerts({ type, visible: true });
     const hideAlert = () => setAlerts({ ...alerts, visible: false });
 
-    // Funciones al confirmar la alerta.
+    // Confirmar la alerta.
     const handleConfirmAlert = async () => {
         switch (alerts.type) {
-            case "resetProgress":
-                await handleResetProgress();
-                hideAlert();
-                break;
-            case "progressReset":
-                hideAlert();
-                break;
-            default:
-                hideAlert();
-                break;
+            case "resetProgress": await handleResetProgress(); hideAlert(); break;
+            case "progressReset": hideAlert(); break;
+            default: hideAlert(); break;
         }
     };
     
+    // Reiniciar progreso.
     const handleResetProgress = async () => {
         try {
             const firstGameReset = await resetFirstGameProgress();
             const secondGameReset = await resetSecondGameProgress();
     
             if (firstGameReset && secondGameReset) {
-                showAlert("progressReset"); // Mostrar alerta de confirmación
+                showAlert("progressReset"); 
             } else {
                 Alert.alert(
                     "Error",
@@ -100,6 +101,7 @@ export default function ParentalControl(props) {
 
     return (
         <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+
             <StatusBar
                 barStyle="dark-content"
                 translucent={true}
@@ -120,11 +122,10 @@ export default function ParentalControl(props) {
             <View style={styles.content}>
                 <ScrollView
                     contentContainerStyle={{
-                        padding: 20, // Espacio interno del ScrollView
+                        padding: 20,
                     }}
-                    style={styles.scrollView} // Centra el propio ScrollView
+                    style={styles.scrollView} 
                 >
-
                     <View style={styles.containerLinkQR}>
                         <View style={styles.containerQR}>
                             <AntDesign name="qrcode" size={280} color="black" />
@@ -142,20 +143,20 @@ export default function ParentalControl(props) {
                                     },
                                     styles.link,
                                 ]}  
+                                onPress={() => Linking.openURL('https://webfrognova-production.up.railway.app/')}
                             >
                                 <Text style={styles.textLink}>Llévame ahí<EvilIcons name="external-link" size={20} color="#40a08a" /></Text>
                             </Pressable>
                         </View>
                     </View>
-
                 </ScrollView>
             </View>
 
             <View style={styles.footer}>
                 <View style={styles.circle}>
-                    <Image source={require('../../assets/LogoFibonatix.png')} style={styles.image} />
+                    <Image source={require('../../assets/img/LogoFibonatix.png')} style={styles.image} />
                 </View>
-                <Text style={styles.textFooter}>Fibonatix</Text>
+                <Text style={styles.textFooter}>Frognova</Text>
             </View>
 
             {alerts.visible && (
@@ -180,7 +181,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#D8F3DC',
     },
-
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -189,11 +189,9 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 15,
         borderBottomRightRadius: 15,
     },
-
     containerButtonBack: {
         left: 20,
     },
-
     ButtonBack: {
         backgroundColor: '#D8F3DC',
         borderRadius: 70,
@@ -202,20 +200,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     containerTextHeader: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     textHeader: {
         fontSize: 35,
         color: 'white',
         fontFamily: 'Quicksand',
         textAlign: 'center',
     },
-
     content: {
         flex: 1, // Ocupa el espacio restante entre el header y el footer
         alignItems: 'center', // Centra el ScrollView horizontalmente
@@ -225,7 +220,6 @@ const styles = StyleSheet.create({
         borderRadius: 10, // Opcional: estilo adicional
         marginBottom: 50,
     },
-
     containerQR: {
         width: 290, // Tamaño del contenedor
         height: 290,
@@ -234,26 +228,22 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     containerTextQR: {
         marginTop: 20,
         width: 290
     },
-
     textQR: {
         fontSize: 20,
         color: '#094F2C',
         fontFamily: 'Quicksand',
         textAlign: 'center',
     },
-
     containerLinkQR: {
         marginTop: 20,
         alignItems: 'center', // Centra horizontalmente el contenido
         justifyContent: 'center', // Centra verticalmente el contenido si es necesario
         width: '100%', // Asegura que el contenedor ocupe todo el ancho
     },
-
     link: {
         flexDirection: 'row', // Para que el texto y el ícono estén en la misma fila
         width: 200, // Ancho del botón
@@ -263,7 +253,6 @@ const styles = StyleSheet.create({
         alignItems: 'center', // Centrar horizontalmente el contenido
         marginTop: 20, // Espacio entre el link y el texto superior
     },
-    
     textLink: {
         fontSize: 22,
         color: '#40a08a',
@@ -271,7 +260,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         textDecorationLine: 'underline',
     },
-
     footer: {
         height: 120,
         backgroundColor: '#74C69D',
@@ -281,7 +269,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         position: 'relative',
     },
-
     circle: {
         width: 100,
         height: 100,
@@ -292,12 +279,10 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -50,
     },
-
     image: {
         width: 85,
         height: 85,
     },
-
     textFooter: {
         fontSize: 30,
         color: 'white',
