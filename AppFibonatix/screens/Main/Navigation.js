@@ -45,15 +45,15 @@ import LoadingScreen from "../../apis/LoadingScreen";
 import { FocusProvider } from '../../apis/FocusContext'
 import { useFocus } from '../../apis/FocusContext'
 
-// Íconos de barra de navegación.
-import { Joystick, JoystickAzul, JoystickNaranja, LunaAzul, LunaNaranja, LunaVerde, UtenciliosAzules, UtenciliosNaranjas, UtenciliosVerdes } from '../../assets/img-svg';
-import TortugaMatematica from '../Juegos/TortugaMatematica';
+import MemoramaMatematico from '../Juegos/MemoramaMatematico/App';
+import MultipliTortuga from '../Juegos/MultipliTortuga/App';
+import DibujiTortuga from '../Juegos/Juego3/App';
+import Juego4 from '../Juegos/Juego4/App';
+import Juego5 from '../Juegos/Juego5/App';
+import Juego6 from '../Juegos/Juego6/App';
+import Juego7 from '../Juegos/Juego7/App';
+import Juego8 from '../Juegos/Juego8/App';
 
-import JuegoMemorama from "../Juegos/MemoramaMatematico/screens/JuegoMemorama";
-import SeleccionDeNivel from "../Juegos/MemoramaMatematico/screens/SeleccionDeNivel";
-
-import LevelScreen from '../Juegos/MultipliTortuga/screens/LevelScreen';
-import GameScreen from '../Juegos/MultipliTortuga/screens/GameScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import Settings from '../Options/Settings';
 import ParentalControl from '../Options/ParentalControl';
@@ -279,8 +279,16 @@ const AppStack = () => (
             headerShown: false,
             cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
         }}
-        >
+    >
         <Stack.Screen name="Menu" component={MyDrawer} />
+        <Stack.Screen name="MemoramaMatematico" component={MemoramaMatematico} />
+        <Stack.Screen name="MultipliTortuga" component={MultipliTortuga} />
+        <Stack.Screen name="DibujiTortuga" component={DibujiTortuga} />
+        <Stack.Screen name='Juego4' component={Juego4} />
+        <Stack.Screen name='Juego5' component={Juego5} />
+        <Stack.Screen name='Juego6' component={Juego6} />
+        <Stack.Screen name='Juego7' component={Juego7} />
+        <Stack.Screen name='Juego8' component={Juego8} />
     </Stack.Navigator>
 );
 

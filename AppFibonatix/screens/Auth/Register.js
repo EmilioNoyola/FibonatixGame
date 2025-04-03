@@ -100,13 +100,18 @@ export default function Register({ navigation }) {
         
                 // Guardar el usuario en Firestore
                 transaction.set(doc(db, "users", userCredential.user.uid), {
-                username,
-                email,
-                activationCode,
+                    username,
+                    email,
+                    activationCode,
+                    license: 3
                 });
         
                 // Marcar el código de activación como usado
-                transaction.update(codeDocRef, { used: true });
+                transaction.update(codeDocRef, { 
+                    used: true,
+                    usedBy: userCredential.user.uid,
+                    redeemedAt: new Date().toISOString() 
+                });
             });
         
             showAlert('registerSuccess');

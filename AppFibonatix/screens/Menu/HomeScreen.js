@@ -95,28 +95,6 @@ export default function HomeScreen(props) {
                     <View style={styles.Card}>
                         <View style={styles.containerImage}>
                             <Image
-                                source={{ uri: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/JuegoSerpiente.webp' }} // Inserta la URL de tu imagen
-                                style={styles.image}
-                            />
-                        </View>
-                        <View style={styles.textButtonContainer}>
-                            <Text style={styles.cardText}>Serpiente Matemática</Text>
-                            <Pressable 
-                                style={({pressed}) => [
-                                    {
-                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
-                                    },
-                                        styles.containerButton,
-                                ]}
-                                onPress={() => navigation.navigate('TortugaMatematica')} 
-                            >
-                                <FontAwesome5 name="play" size={24} color="white" />
-                            </Pressable>
-                        </View>
-                    </View>
-                    <View style={styles.Card}>
-                        <View style={styles.containerImage}>
-                            <Image
                                 source={{ uri: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/MemoramaMatematico.webp' }} // Inserta la URL de tu imagen
                                 style={styles.image}
                             />
@@ -166,7 +144,7 @@ export default function HomeScreen(props) {
                             />
                         </View>
                         <View style={styles.textButtonContainer}>
-                            <Text style={styles.cardText}>Proximamente...</Text>
+                            <Text style={styles.cardText}>DibujiTortuga ( Juego 3 )</Text>
                             <Pressable 
                                 style={({pressed}) => [
                                     {
@@ -174,6 +152,139 @@ export default function HomeScreen(props) {
                                     },
                                         styles.containerButton,
                                 ]}
+                                onPress={() => navigation.navigate('DibujiTortuga')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://your-image-url.com' }}
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>Tortuga Alimenticia ( Juego 4 )</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('Juego4')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://your-image-url.com' }}
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>RapiTortuga ( Juego 5 )</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('Juego5')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://your-image-url.com' }}
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>Rompefracciones ( Juego 6 )</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('Juego6')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://your-image-url.com' }}
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>Tortuga Alimenticia 2 ( Juego 7 )</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('Juego7')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://your-image-url.com' }}
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>Sopa de Tortuga ( Juego 8 )</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('Juego8')} 
+                            >
+                                <FontAwesome5 name="play" size={24} color="white" />
+                            </Pressable>
+                        </View>
+                    </View>
+                    <View style={styles.Card}>
+                        <View style={styles.containerImage}>
+                            <Image
+                                source={{ uri: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/JuegoSerpiente.webp' }} // Inserta la URL de tu imagen
+                                style={styles.image}
+                            />
+                        </View>
+                        <View style={styles.textButtonContainer}>
+                            <Text style={styles.cardText}>Serpiente Matemática</Text>
+                            <Pressable 
+                                style={({pressed}) => [
+                                    {
+                                        backgroundColor: pressed ? '#185D45' : '#1F7758',
+                                    },
+                                        styles.containerButton,
+                                ]}
+                                onPress={() => navigation.navigate('TortugaMatematica')} 
                             >
                                 <FontAwesome5 name="play" size={24} color="white" />
                             </Pressable>
