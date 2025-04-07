@@ -55,9 +55,9 @@ import Juego7 from '../Juegos/Juego7/App';
 import Juego8 from '../Juegos/Juego8/App';
 
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
-import Settings from '../Options/Settings';
-import ParentalControl from '../Options/ParentalControl';
-import SupportAndHelp from '../Options/SupportAndHelp';
+import Settings from '../options/Settings';
+import ParentalControl from '../options/ParentalControl';
+import SupportAndHelp from '../options/SupportAndHelp';
 
 const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 const Stack = createStackNavigator();
