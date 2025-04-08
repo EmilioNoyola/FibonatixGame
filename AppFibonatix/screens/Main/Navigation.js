@@ -266,9 +266,9 @@ const AuthStack = () => (
     >
         <Stack.Screen name="Inicio" component={Inicio} />
         <Stack.Screen name="Login" component={Login} options={{ cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter }} />
-        <Stack.Screen name="Register" component={Register} options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }} />
-        <Stack.Screen name="RecoverPassword" component={RecoverPassword} options={{ cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
-        <Stack.Screen name="ChangePassword" component={ChangePassword} options={{ cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
+        <Stack.Screen name="Register" component={Register} options={{ cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter }} />
+        <Stack.Screen name="RecoverPassword" component={RecoverPassword} options={{ cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter }} />
+        <Stack.Screen name="ChangePassword" component={ChangePassword} options={{ cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter }} />
     </Stack.Navigator>
 );
 

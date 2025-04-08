@@ -16,7 +16,7 @@ export const LEVELS_CONFIG = [
       },
       cardsToShow: 3,
       foodItems: [
-        { name: 'Pera', category: 'Frutas y Verduras', image: 'https://i.imgur.com/mNXPZ8B.png' },
+        { name: 'Pera', category: 'Frutas y Verduras', image: 'https://imgur.com/qGp7Vs7' },
         { name: 'Naranja', category: 'Frutas y Verduras', image: 'https://i.imgur.com/mNXPZ8B.png' },
         { name: 'Papa', category: 'Cereales, Granos y Tubérculos', image: 'https://i.imgur.com/mNXPZ8B.png' },
         { name: 'Pescado', category: 'Origen Animal', image: 'https://cdn.pixabay.com/photo/2016/04/01/09/29/cartoon-1299636_1280.png' },

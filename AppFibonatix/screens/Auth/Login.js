@@ -10,20 +10,16 @@ import { LoginStyles } from "../../styles/UserAuthenticationStyles/LoginStyles";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 
 // Alertas Personalizadas
-import CustomAlert from '../../apis/Alertas';  // Importamos la función de alerta personalizada
+import CustomAlert from '../../apis/Alertas';
 
-// Funciones proporcionadas por Firebase.
-import '../../apis/Credentials'
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+// Importamos nuestros servicios de Firebase
+import '../../apis/Credentials';
+import { userService, authService, getAuthErrorType } from '../../apis/FirebaseService';
 
 // Componentes para las fuentes
 import useCustomFonts from '../../apis/FontsConfigure';
 
-import { CommonActions } from '@react-navigation/native';
-
 export default function Login(props) {
-
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
 
     // Si las fuentes no están cargadas, se retorna null
@@ -37,96 +33,81 @@ export default function Login(props) {
     const [password, setPassword] = useState('');
 
     // Estados para controlar la visibilidad de las alertas
-    const [showAlert1, setShowAlert1] = useState(false); 
-    const [showAlert2, setShowAlert2] = useState(false); 
-    const [showAlert3, setShowAlert3] = useState(false);
-    const [showAlert4, setShowAlert4] = useState(false);
-    const [showAlert5, setShowAlert5] = useState(false);
-
-    const auth = getAuth();
-    const db = getFirestore();
+    const [alerts, setAlerts] = useState({ type: null, visible: false });
+    const showAlert = (type) => setAlerts({ type, visible: true });
+    const hideAlert = () => setAlerts({ ...alerts, visible: false });
 
     const [isLoading, setIsLoading] = useState(false);  // Estado para el indicador de carga
 
-    // Buscar el correo electrónico basado en el nombre de usuario
-    const buscarUsuario = async (username) => {
-
-        const q = query(collection(db, "users"), where("username", "==", username));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-
-            // Retornar el correo electrónico si el nombre de usuario existe
-            return querySnapshot.docs[0].data().email;
-
-        } else {
-
-            // Alerta: Manejar el caso en el que el nombre de usuario no existe
-            console.log("El nombre de usuario no existe.");
-            setIsLoading(false);  // Desactiva al iniciar sesión correctamente
-            setShowAlert1(true);
-            return null;
-        }
-
-    };
-
-    const IniciarSesion = async () => {
-
+    // Método para iniciar sesión
+    const iniciarSesion = async () => {
         try {
+            setIsLoading(true);
 
-            setIsLoading(true);  // Activa el estado de carga
-
-            if (username && password) {
-
-                // Obtener el correo asociado al nombre de usuario
-                const email = await buscarUsuario(username);
-
-                if(email) {
-
-                console.log("Correo encontrado:", email);
-                
-                // Iniciar sesión usando el correo y la contraseña
-                signInWithEmailAndPassword(auth, email, password)
-
-                .then((userCredential) => {
-                    const user = userCredential.user;
-                    setIsLoading(false);  // Desactiva al iniciar sesión correctamente
-                    console.log("Usuario autenticado:", user);
-                    // Dentro de tu función que maneja el login, por ejemplo
-                })
-
-                    .catch((error) => {
-                        console.log("Error al iniciar sesión:", error.code, error.message);
-                        setIsLoading(false);  // Desactiva el estado si hay un error
-                        // Alerta: Manejar el caso en el que la autenticación falla
-                         // Si la alerta de usuario inexistente no está activa, mostrar la alerta de contraseña incorrecta.
-                        if (!showAlert1) {
-                            setShowAlert3(true); // Mostrar alerta de contraseña incorrecta
-                        }
-                    });
-
-                }
-
-            } else {
-                setIsLoading(false);  // Desactiva el estado si los campos están vacíos
-                console.log("Campos de texto vacíos.");
-                // Alerta: Manejar el caso en el que los campos de texto están vacíos
-                setShowAlert4(true);
+            if (!username || !password) {
+                setIsLoading(false);
+                return showAlert('emptyFields');
             }
 
+            // Obtener el correo asociado al nombre de usuario
+            const userData = await userService.findUserByUsername(username);
+
+            if (!userData) {
+                setIsLoading(false);
+                return showAlert('userNotFound');
+            }
+
+            const email = userData.email;
+            console.log("Correo encontrado:", email);
+            
+            // Iniciar sesión usando el correo y la contraseña
+            try {
+                const userCredential = await authService.login(email, password);
+                setIsLoading(false);
+                console.log("Usuario autenticado:", userCredential.user);
+                showAlert('loginSuccess');
+                // Aquí podrías navegar a la pantalla principal después de iniciar sesión
+            } catch (error) {
+                console.log("Error al iniciar sesión:", error.code, error.message);
+                setIsLoading(false);
+                const errorType = getAuthErrorType(error.code);
+                showAlert(errorType === 'unknown' ? 'loginError' : errorType);
+            }
         } catch (error) {
             console.log("Error en la búsqueda del usuario:", error.message);
-            setIsLoading(false);  // Desactiva el estado en caso de error
-            // Alerta: Error en la busqueda del usuario.
-            setShowAlert5(true);
+            setIsLoading(false);
+            showAlert('searchError');
         }
+    };
 
+    // Devuelve el título de cada alerta
+    const mostrarTituloAlerta = (type) => {
+        switch (type) {
+            case 'emptyFields': return "Campos vacíos";
+            case 'userNotFound': return "Usuario Inexistente";
+            case 'wrongPassword': return "Contraseña Incorrecta";
+            case 'loginError': return "Error de Inicio de Sesión";
+            case 'loginSuccess': return "¡Bienvenido!";
+            case 'searchError': return "Error en la Búsqueda de Usuario";
+            default: return "Alerta";
+        }
+    };
+    
+    // Devuelve el mensaje de la alerta
+    const mostrarMensajeAlerta = (type) => {
+        switch (type) {
+            case 'emptyFields': return "Por favor, completa todos los campos.";
+            case 'userNotFound': return "Por favor, ingresa un Usuario válido.";
+            case 'wrongPassword': return "Por favor, inténtalo de nuevo.";
+            case 'loginError': return "Hubo un problema al iniciar sesión. Intenta de nuevo.";
+            case 'loginSuccess': return "Haz iniciado sesión correctamente.";
+            case 'searchError': return "Por favor, inténtalo de nuevo.";
+            default: return "";
+        }
     };
 
     return (
-
-        <SafeAreaView style= {LoginStyles.main} onLayout={onLayoutRootView}>
-
+        <SafeAreaView style={LoginStyles.main} onLayout={onLayoutRootView}>
             <StatusBar
                 barStyle="light-content"
                 translucent={true}
@@ -134,19 +115,14 @@ export default function Login(props) {
             />
 
             <View style={LoginStyles.container}>
-
                 <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={LoginStyles.backgroundImage} />
 
                 <View style={LoginStyles.header}>
-
                     <Text style={LoginStyles.headerText}>INICIO DE SESIÓN</Text>
-
                 </View>
 
                 <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-
                     <View style={LoginStyles.inputContainer}>
-
                         <TextInput
                             placeholder="Nombre de Usuario"
                             autoComplete='username'
@@ -156,7 +132,6 @@ export default function Login(props) {
                         />
 
                         <View style={{ position: 'relative', paddingTop: 35 }}>
-
                             <TextInput
                                 placeholder="Contraseña"
                                 autoComplete='password'
@@ -171,75 +146,51 @@ export default function Login(props) {
                                 onPress={() => setSecureTextEntry(!secureTextEntry)}
                                 hitSlop={35}
                             >
-
                                 <Icon
                                     name={secureTextEntry ? "eye" : "eye-off"} 
                                     size={38}
                                     color="#0B5A39"
                                     style={LoginStyles.eyeIconBelow}
                                 />
-
                             </Pressable>
 
                             <View>
-
                                 <Pressable 
-                                
                                     onPress={() => props.navigation.navigate('RecoverPassword')}
-
                                     style={({pressed}) => [
                                         {
                                             backgroundColor: pressed ? '#a9f7a2d8' : '#A9F7A27A',
                                         },
                                         LoginStyles.ButtonRecoverPasswordContainer,
                                     ]}
-
-                                    
                                 >
-
                                     <Text style={LoginStyles.ButtonRecoverPassword}>¿Olvidaste tu contraseña?</Text>
-
                                 </Pressable>
-
                             </View>
-
                         </View>
-
                     </View>
-
                 </ScrollView>
 
                 <View style={LoginStyles.footer}>
-
                     <View style={LoginStyles.buttonContainer}>
-
                         <Pressable 
-                            
                             style={({pressed}) => [
                                 {
                                     backgroundColor: pressed ? '#1f8a83' : '#239790',
                                 },
                                 LoginStyles.button,
                             ]}
-
-                            onPress={IniciarSesion}
+                            onPress={iniciarSesion}
                             disabled={isLoading}
-                        
                         >
                             <Text style={LoginStyles.buttonText}>INICIAR SESIÓN</Text>
-
                         </Pressable>
-
                     </View>
 
                     <Pressable onPress={() => props.navigation.navigate('Register')}>
-
                         <Text style={LoginStyles.footerText}>¿No tienes cuenta? Regístrate</Text>
-                        
                     </Pressable>
-
                 </View>
-
             </View>
 
             {/* Indicador de carga */}
@@ -250,65 +201,17 @@ export default function Login(props) {
                 </View>
             )}
 
-            {/* Llamada a la alerta sobre campos vacíos. */}
-            <CustomAlert
-                showAlert={showAlert1}
-                title="Usuario Inexistente"
-                message="Por favor, ingresa un Usuario válido."
-                onConfirm={() => setShowAlert1(false)}
-                confirmButtonColor={"#0B5A39"}
-                confirmText={"Aceptar"}
-            /> 
-
-            {/* Llamada a la alerta sobre registro exitoso */}
-            <CustomAlert
-                showAlert={showAlert2}
-                title="¡Bienvenido!"
-                message="Haz iniciado sesión correctamente."
-                onConfirm={() => {
-                    setShowAlert2(false); // Primera acción
-                }}
-                confirmButtonColor={"#0B5A39"}
-                confirmText={"Aceptar"}
-            />
-
-            {/* Llamada a la alerta sobre guardado de usuario fallido. */}
-            <CustomAlert
-                showAlert={showAlert3}
-                title="Contraseña Incorrecta"
-                message="Por favor, inténtalo de nuevo."
-                onConfirm={() => {
-                    setShowAlert3(false); // Primera acción
-                }}
-                confirmButtonColor={"#0B5A39"}
-                confirmText={"Aceptar"}
-            />
-
-            {/* Llamada a la alerta sobre registro fallido. */}
-            <CustomAlert
-                showAlert={showAlert4}
-                title="Campos vacíos"
-                message="Por favor, completa todos los campos."
-                onConfirm={() => {
-                    setShowAlert4(false); // Primera acción
-                }}
-                confirmButtonColor={"#0B5A39"}
-                confirmText={"Aceptar"}
-            />
-
-            {/* Llamada a la alerta sobre registro fallido. */}
-            <CustomAlert
-                showAlert={showAlert5}
-                title="Error en la Búsqueda de Usuario"
-                message="Por favor, inténtalo de nuevo."
-                onConfirm={() => {
-                    setShowAlert5(false); // Primera acción
-                }}
-                confirmButtonColor={"#0B5A39"}
-                confirmText={"Aceptar"}
-            />
-
+            {/* Alerta dinámica */}
+            {alerts.visible && (
+                <CustomAlert
+                    showAlert={alerts.visible}
+                    title={mostrarTituloAlerta(alerts.type)}
+                    message={mostrarMensajeAlerta(alerts.type)}
+                    onConfirm={hideAlert}
+                    confirmButtonColor={"#0B5A39"}
+                    confirmText={"Aceptar"}
+                />
+            )}
         </SafeAreaView>
-
     );
 }

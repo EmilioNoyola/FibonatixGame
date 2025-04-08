@@ -1,9 +1,9 @@
 // Componentes y hooks de React.
 import React from 'react'; 
-import { Text, TextInput, View, ImageBackground, SafeAreaView, StatusBar, Pressable, ScrollView, ActivityIndicator, Modal, StyleSheet } from 'react-native';
+import { Text, TextInput, View, ImageBackground, SafeAreaView, StatusBar, Pressable, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useState, useEffect } from 'react'; 
 
-// Iconoss
+// Iconos
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 
 // Alertas
@@ -12,16 +12,20 @@ import CustomAlert from '../../apis/Alertas';
 // Fuentes personalizadas.
 import useCustomFonts from '../../apis/FontsConfigure';
 
-// Autenticación con Firebase
+// Importamos nuestros servicios de Firebase
 import '../../apis/Credentials';
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, setDoc, doc, query, where, getDocs, collection, runTransaction, updateDoc, } from "firebase/firestore";
+import { userService, registerWithCode, getAuthErrorType } from '../../apis/FirebaseService';
 
 // Expo Camera
 import { Camera, CameraView } from 'expo-camera';
 
-export default function Register({ navigation }) {
+// Estilos
+import { RegisterStyles } from "../../styles/UserAuthenticationStyles/RegisterStyles";
 
+// Importa el servicio de sincronización
+import { syncService } from '../../apis/ApiService';
+
+export default function Register({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
     if (!fontsLoaded) return null; // Si las fuentes no están cargadas, se retorna null
 
@@ -41,87 +45,45 @@ export default function Register({ navigation }) {
     const [isModalVisible, setModalVisible] = useState(false);// Estado para controlar la visibilidad del modal del escáner
     const [hasPermission, setHasPermission] = useState(null);
 
-    // Inicializamos el servidor de autenticación de firebase.
-    const auth = getAuth();
-    // Inicializamos el servidor de base de datos ( Firestore ) de firebase.
-    const db = getFirestore();
-
     const [isLoading, setIsLoading] = useState(false);  // Estado para el indicador de carga
 
-    // Verifica si el nombre de usuario existe.
-    const verificarUsuario = async () => {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("username", "==", username));
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
-    };
-
-    const verificarCodigo = async (code) => {
-        if (!code) return false;
-    
-        const codeRef = collection(db, "activationCodes");
-        const q = query(codeRef, where("code", "==", code), where("used", "==", false));
-        const querySnapshot = await getDocs(q);
-    
-        if (querySnapshot.empty) return false; // Si no encuentra un código válido, retorna false
-    
-        // Devuelve la referencia del documento del código de activación
-        return querySnapshot.docs[0].ref;
-    };    
-
-    // Registra un nuevo usuario
-    const Registrar = async () => {
+    // Registrar nuevo usuario
+    const registrar = async () => {
         if (!email || !password || !username || !activationCode) {
             setIsLoading(false);
             return showAlert('emptyFields');
         }
+        
         setIsLoading(true);
-            try {
-            if (await verificarUsuario()) {
+        try {
+            // Verificar si el nombre de usuario ya existe
+            if (await userService.usernameExists(username)) {
                 setIsLoading(false);
                 return showAlert('usernameTaken');
             }
-        
-            const codeDocRef = await verificarCodigo(activationCode);
-            if (!codeDocRef) {
-                setIsLoading(false);
-                return showAlert('invalidCode'); // Código no válido o ya usado
-            }
-        
-            // Ejecutar una transacción para garantizar la actualización atómica
-            await runTransaction(db, async (transaction) => {
-                const codeDoc = await transaction.get(codeDocRef);
-                if (!codeDoc.exists() || codeDoc.data().used) {
-                throw new Error("Código inválido o ya utilizado");
-                }
-        
-                // Crear la cuenta en Firebase Authentication
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        
-                // Guardar el usuario en Firestore
-                transaction.set(doc(db, "users", userCredential.user.uid), {
-                    username,
-                    email,
-                    activationCode,
-                    license: 3
-                });
-        
-                // Marcar el código de activación como usado
-                transaction.update(codeDocRef, { 
-                    used: true,
-                    usedBy: userCredential.user.uid,
-                    redeemedAt: new Date().toISOString() 
-                });
-            });
-        
+            
+            // Registrar usuario con código de activación en Firebase
+            await registerWithCode(username, email, password, activationCode);
+            
+            await syncService.startSync();
+            
+            setIsLoading(false);
             showAlert('registerSuccess');
+            
         } catch (error) {
             console.error("Error en registro:", error);
-            const errorType = obtenerError(error.code) || 'registerError';
+            setIsLoading(false);
+            
+            let errorType = 'registerError';
+            if (error.code) {
+                errorType = getAuthErrorType(error.code);
+            } else if (error.message && error.message.includes("Código inválido")) {
+                errorType = 'invalidCode';
+            }
+            
             showAlert(errorType);
         }
-        setIsLoading(false);
-    };    
+    };  
 
     useEffect(() => {
         (async () => {
@@ -166,19 +128,8 @@ export default function Register({ navigation }) {
         }
     };
 
-    // Devuelve el código de error.
-    const obtenerError = (errorCode) => {
-        switch (errorCode) {
-            case 'auth/invalid-email': return 'invalidEmail';
-            case 'auth/email-already-in-use': return 'emailInUse';
-            case 'auth/weak-password': return 'weakPassword';
-            default: return 'registerError';
-        }
-    };
-
     return (
-        <SafeAreaView style= {RegisterStyles.main} onLayout={onLayoutRootView}>
-
+        <SafeAreaView style={RegisterStyles.main} onLayout={onLayoutRootView}>
             <StatusBar
                 barStyle="light-content"
                 translucent={true}
@@ -186,7 +137,6 @@ export default function Register({ navigation }) {
             />
 
             <View style={RegisterStyles.container}>
-
                 <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={RegisterStyles.backgroundImage} />
 
                 <View style={RegisterStyles.header}>
@@ -228,7 +178,13 @@ export default function Register({ navigation }) {
                             </Pressable>
                         </View>
                         <View style={{ position: 'relative' }}>
-                            <TextInput placeholder="Código de Activación" value={activationCode} style={RegisterStyles.input} editable={true} onChangeText={setActivationCode} />
+                            <TextInput 
+                                placeholder="Código de Activación" 
+                                value={activationCode} 
+                                style={RegisterStyles.input} 
+                                editable={true} 
+                                onChangeText={setActivationCode} 
+                            />
                             <Pressable style={RegisterStyles.eyeIconContainer} onPress={() => setModalVisible(true)}>
                                 <Icon name='qrcode' size={38} color="#0B5A39" style={RegisterStyles.eyeIconBelow} />
                             </Pressable>
@@ -245,8 +201,7 @@ export default function Register({ navigation }) {
                                 },
                                 RegisterStyles.button,
                             ]}
-
-                            onPress={Registrar}
+                            onPress={registrar}
                             disabled={isLoading}
                         >
                             <Text style={RegisterStyles.buttonText}>REGISTRARSE</Text>
@@ -256,7 +211,6 @@ export default function Register({ navigation }) {
                         <Text style={RegisterStyles.footerText}>¿Ya tienes cuenta? Inicia Sesión</Text>
                     </Pressable>
                 </View>
-
             </View>   
 
             {/* Modal para escanear el código QR */}
@@ -293,149 +247,6 @@ export default function Register({ navigation }) {
                     confirmText={"Aceptar"}
                 />
             )}
-
         </SafeAreaView>
     );
 }
-
-export const RegisterStyles = StyleSheet.create({
-    main: {
-        flex: 1, 
-        backgroundColor: '#B1F6C3',
-    },
-
-    container: {
-        flex: 1,
-        backgroundColor: '#B1F6C3',
-    },
-    
-    backgroundImage: {
-        resizeMode: 'contain',
-        position: 'absolute',
-        opacity: 0.7,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-    },
-    
-    header: {   
-        width: '100%',
-        height: 97,
-        backgroundColor: '#0B5A39',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderBottomLeftRadius: 15,
-        borderBottomRightRadius: 15,
-    },
-
-    headerText: {
-        color: '#E0F9E4',
-        fontSize: 40,
-        textTransform: 'uppercase',
-        fontFamily: 'Quicksand',
-    },
-
-    inputContainer: {
-        alignItems: 'center',
-        height: 350,
-        marginTop: 70,
-    },
-    
-    input: {
-        fontFamily: 'Quicksand_SemiBold',
-        width: 274,
-        height: 58,
-        borderRadius: 27,
-        paddingHorizontal: 20,
-        backgroundColor: '#E8FCE9',
-        color: '#01160399',
-        opacity: 0.95,
-        marginBottom: 35,
-    },
-
-    eyeIconContainer: {
-        position: 'absolute',
-        right: 20,
-        top: 10, 
-        height: 38,
-        width: 38,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    buttonContainer: {
-        bottom: 60
-    },
-    
-    button: {
-        width: 274,
-        height: 58,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 27,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 7 },
-            shadowOpacity: 0.8,
-            shadowRadius: 4,
-            elevation: 5,
-    },    
-
-    buttonText: {
-        color: '#fff',
-        fontSize: 15,
-        fontFamily: 'Quicksand',
-    },
-    
-    footer: {
-        height: 167, 
-        backgroundColor: '#0B5A39',
-        justifyContent: 'center', 
-        alignItems: 'center',    
-        marginTop: 20, 
-        bottom: 0,  
-        left: 0,   
-        right: 0,   
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -7 },
-            shadowOpacity: 0.8,
-            shadowRadius: 12,
-            elevation: 15,
-    },
-
-    footerText: {
-        color: '#9DE0B6',
-        fontSize: 14,
-        justifyContent: 'center',
-        alignItems: 'center',   
-        bottom: 20,
-        fontFamily: 'Quicksand_Medium',
-    },
-
-    loadingContainer: {
-        position: 'absolute', // Hace que el contenedor se superponga al resto del contenido
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fondo oscuro semitransparente
-        justifyContent: 'center', // Centra el contenido verticalmente
-        alignItems: 'center', // Centra el contenido horizontalmente
-        zIndex: 10, // Hace que el contenedor esté por encima de otros elementos
-    },
-
-    loadingText: {
-        color: '#fff',
-        fontSize: 18,
-        marginTop: 10,
-        textAlign: 'center',
-    },
-
-    modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-    camera: { width: 300, height: 400 },
-    modalCloseButton: { marginTop: 20, backgroundColor: '#0B5A39', padding: 10, borderRadius: 10 },
-    modalCloseText: { color: 'white', fontSize: 16 }
-})

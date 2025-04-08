@@ -18,6 +18,7 @@
     "@react-navigation/stack": "^6.4.1",
     "@types/d3-shape": "^3.1.6",
     "@types/react": "~18.3.12",
+    "axios": "^1.8.4",
     "d3-shape": "^3.2.0",
     "expo": "~52.0.36",
     "expo-barcode-scanner": "^13.0.1",
