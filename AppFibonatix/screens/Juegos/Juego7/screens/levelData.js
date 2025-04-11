@@ -134,7 +134,7 @@ export const levels = [
   {
     id: 4,
     title: "Experto",
-    description: "Identificar alimentos por temporada y origen",
+    description: "Identificar figuras por lados y forma",
     foodsKey: "level4Foods",
     rounds: [
       { id: 1, title: "Encuentra las figuras con lados", type: ["Regular", "Irregular"] },
