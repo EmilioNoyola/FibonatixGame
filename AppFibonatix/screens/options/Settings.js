@@ -6,10 +6,10 @@ import * as ImagePicker from "expo-image-picker";
 
 // Navegación
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
-import CustomSwitch from '../../apis/CustomSwitch';
+import CustomSwitch from '../../assets/apis/CustomSwitch';
 
 // Fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Íconos
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -21,10 +21,10 @@ import { doc, getDoc, updateDoc, getFirestore } from "firebase/firestore";
 import { DeviceEventEmitter } from 'react-native'; // Importar DeviceEventEmitter
 
 // Reiniciar progreso.
-import { resetFirstGameProgress, resetSecondGameProgress } from '../../apis/resetProgress';
+import { resetFirstGameProgress, resetSecondGameProgress } from '../../assets/apis/resetProgress';
 
 // Alertas Personalizadas
-import CustomAlert from '../../apis/Alertas';
+import CustomAlert from '../../assets/apis/Alertas';
 
 const IMGUR_CLIENT_ID = "0df5037c839291f"; // Client ID de Imgur
 

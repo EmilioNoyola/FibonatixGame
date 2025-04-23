@@ -6,7 +6,7 @@ import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, ScrollView,
 import { useNavigation } from '@react-navigation/native';
 
 // Fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Íconos
 import { MaterialIcons } from '@expo/vector-icons'; 

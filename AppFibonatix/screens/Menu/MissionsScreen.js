@@ -6,7 +6,7 @@ import { Text, View, SafeAreaView, StatusBar, Pressable, ScrollView, StyleSheet,
 import Animated, { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 
 // Fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Componente de Sección Personalidad
 import PersonalityGrid from './PersonalityGrid';

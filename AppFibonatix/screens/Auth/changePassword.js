@@ -4,7 +4,7 @@ import { Text, TextInput, View, ImageBackground, SafeAreaView, StatusBar, Pressa
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 import { changePasswordStyles } from "../../styles/UserAuthenticationStyles/changePasswordStyles";
 
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 export default function ChangePassword(props) {
 

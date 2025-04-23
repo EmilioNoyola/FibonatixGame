@@ -10,7 +10,7 @@ import { BackHandler } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'; 
 
 // Alertas Personalizadas
-import CustomAlert from '../../../../apis/Alertas';
+import CustomAlert from '../../../../assets/apis/Alertas';
 
 function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
   

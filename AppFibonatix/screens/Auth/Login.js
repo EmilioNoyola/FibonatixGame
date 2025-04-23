@@ -10,14 +10,14 @@ import { LoginStyles } from "../../styles/UserAuthenticationStyles/LoginStyles";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 
 // Alertas Personalizadas
-import CustomAlert from '../../apis/Alertas';
+import CustomAlert from '../../assets/apis/Alertas';
 
 // Importamos nuestros servicios de Firebase
-import '../../apis/Credentials';
-import { userService, authService, getAuthErrorType } from '../../apis/FirebaseService';
+import '../../assets/firebase/Credentials';
+import { userService, authService, getAuthErrorType } from '../../assets/firebase/FirebaseService';
 
 // Componentes para las fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 export default function Login(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();

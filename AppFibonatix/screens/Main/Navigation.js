@@ -39,11 +39,13 @@ import BedroomScreen from "../Menu/BedroomScreen";
 import CustomDrawerContent from './CustomDrawerContent';
 
 // Pantalla de Carga
-import LoadingScreen from "../../apis/LoadingScreen"; 
+import LoadingScreen from "../../assets/apis/LoadingScreen"; 
 
 // Foco de Sueño
-import { FocusProvider } from '../../apis/FocusContext'
-import { useFocus } from '../../apis/FocusContext'
+import { FocusProvider } from '../../assets/apis/FocusContext'
+import { useFocus } from '../../assets/apis/FocusContext'
+
+import { useAppContext } from '../../assets/db/AppContext';
 
 import MemoramaMatematico from '../Juegos/MemoramaMatematico/App';
 import MultipliTortuga from '../Juegos/MultipliTortuga/App';
@@ -294,30 +296,7 @@ const AppStack = () => (
 
 // Función para exportar la navegación como componente.
 export default function Navigation() {
-    const [user, setUser] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const auth = getAuth();
-
-    // Utilizamos esta función para verificar si el usuario inicio sesión.
-    useEffect(() => {
-        // Add error boundary
-        try {
-            const unsubscribe = onAuthStateChanged(auth, 
-                (user) => {
-                    setUser(user);
-                    setIsLoading(false);
-                },
-                (error) => {
-                    console.error("Auth Error:", error);
-                    setIsLoading(false);
-                }
-                );
-            return () => unsubscribe();
-        } catch (error) {
-            console.error("Setup Error:", error);
-            setIsLoading(false);
-        }
-    }, []);
+    const { user, loading: isLoading } = useAppContext();
 
     if (isLoading) {
         return (

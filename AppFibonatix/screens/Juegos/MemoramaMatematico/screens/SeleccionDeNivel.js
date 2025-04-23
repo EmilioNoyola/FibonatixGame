@@ -11,10 +11,10 @@ import { StyleSeleccion } from "../styles/StyleSeleccion";
 import Fontisto from '@expo/vector-icons/Fontisto';
 
 // Fuentes Personalizadas
-import useCustomFonts from '../../../../apis/FontsConfigure';
+import useCustomFonts from '../../../../assets/apis/FontsConfigure';
 
 // Alertas Personalizadas
-import CustomAlert from '../../../../apis/Alertas';
+import CustomAlert from '../../../../assets/apis/Alertas';
 
 export default function SeleccionDeNivel({ navigation }) {
 

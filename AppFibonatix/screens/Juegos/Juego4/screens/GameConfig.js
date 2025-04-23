@@ -2,17 +2,17 @@
 export const LEVELS_CONFIG = [
     {
       id: 1,
-      title: "TORTUGA ALIMENTICIA",
+      title: "TORTUGA MATEMÁTICA",
       level: "NVL. 1",
       categories: [
-        'Frutas y Verduras',
-        'Origen Animal',
-        'Cereales, Granos y Tubérculos'
+        'Números',
+        'Figuras',
+        'Fracciones'
       ],
       initialCategories: {
-        'Frutas y Verduras': [],
-        'Origen Animal': [],
-        'Cereales, Granos y Tubérculos': []
+        'Números': [],
+        'Figuras': [],
+        'Fracciones': []
       },
       cardsToShow: 3,
       foodItems: [
@@ -38,37 +38,37 @@ export const LEVELS_CONFIG = [
       title: "TORTUGA ALIMENTICIA",
       level: "NVL. 2",
       categories: [
-        'Frutas y Verduras',
-        'Proteínas',
-        'Cereales, Granos y Tubérculos',
-        'Aceites y Grasas Saludables'
+        'Números pares',
+        'Números impares',
+        'Fracciones',
+        'Figuras'
       ],
       initialCategories: {
-        'Frutas y Verduras': [],
-        'Proteínas': [],
-        'Cereales, Granos y Tubérculos': [],
-        'Aceites y Grasas Saludables': []
+        'Números pares': [],
+        'Números impares': [],
+        'Fracciones': [],
+        'Figuras': []
       },
       cardsToShow: 4,
       foodItems: [
-        { name: 'Fresa', category: 'Frutas y Verduras', image: 'https://cdn.pixabay.com/photo/2016/02/23/17/29/strawberry-1218158_1280.png' },
-        { name: 'Plátano', category: 'Frutas y Verduras', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/44/banana-158350_1280.png' },
-        { name: 'Arroz', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/32/rice-575814_1280.png' },
-        { name: 'Frijoles', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/34/beans-575831_1280.png' },
-        { name: 'Pavo', category: 'Proteínas', image: 'https://cdn.pixabay.com/photo/2017/01/31/23/10/animal-2028134_1280.png' },
-        { name: 'Lentejas', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/52/lentils-157011_1280.png' },
-        { name: 'Queso', category: 'Proteínas', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/13/cheese-156973_1280.png' },
-        { name: 'Leche', category: 'Proteínas', image: 'https://cdn.pixabay.com/photo/2020/02/20/17/57/milk-4865690_1280.png' },
-        { name: 'Aceite de Oliva', category: 'Aceites y Grasas Saludables', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/53/olive-oil-576528_1280.png' },
-        { name: 'Almendras', category: 'Aceites y Grasas Saludables', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/51/almond-157004_1280.png' },
-        { name: 'Aguacate', category: 'Aceites y Grasas Saludables', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/27/avocado-575769_1280.png' },
-        { name: 'Chía', category: 'Aceites y Grasas Saludables', image: 'https://cdn.pixabay.com/photo/2015/02/13/11/19/chia-seed-636034_1280.jpg' },
-        { name: 'Nueces', category: 'Aceites y Grasas Saludables', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/27/walnut-156686_1280.png' },
-        { name: 'Lechuga', category: 'Frutas y Verduras', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/51/salad-157004_1280.png' },
-        { name: 'Champiñones', category: 'Frutas y Verduras', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/22/mushroom-156087_1280.png' },
-        { name: 'Chícharos', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/24/peas-575815_1280.png' },
-        { name: 'Habas', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/35/beans-575839_1280.png' },
-        { name: 'Garbanzos', category: 'Cereales, Granos y Tubérculos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/34/chickpeas-575837_1280.png' }
+        { name: 'Ocho', category: 'Números pares', image: 'https://imgur.com/U0ybXLC.png' },
+        { name: 'Diez', category: 'Números pares', image: 'https://imgur.com/qVkuSgt.png' },
+        { name: 'Tres Quintos', category: 'Fracciones', image: 'https://imgur.com/Mx5aEjb.png' },
+        { name: 'Siete Novenos', category: 'Fracciones', image: 'https://imgur.com/nutVvXp.png' },
+        { name: 'Quince', category: 'Números impares', image: 'https://imgur.com/swqgtYa.png' },
+        { name: 'Seis Cuartos', category: 'Fracciones', image: 'https://imgur.com/dgzCwNo.png' },
+        { name: 'Diecisiete', category: 'Números impares', image: 'https://imgur.com/skk6uQT.png' },
+        { name: 'Once', category: 'Números impares', image: 'https://imgur.com/QhNzPgg.png' },
+        { name: 'Hexágono', category: 'Figuras', image: 'https://imgur.com/0dWzEty.png' },
+        { name: 'Veintiuno', category: 'Números impares', image: 'https://imgur.com/WF5RkbP.png' },
+        { name: 'Octágono', category: 'Figuras', image: 'https://imgur.com/sw6a7n0.png' },
+        { name: 'Trapecio', category: 'Figuras', image: 'https://imgur.com/a0m8j3S.jpg' },
+        { name: 'Pentagono', category: 'Figuras', image: 'https://imgur.com/Sg3i1Qa.png' },
+        { name: 'Dieciocho', category: 'Números pares', image: 'https://imgur.com/c9i5JpR.png' },
+        { name: 'Veintidos', category: 'Números pares', image: 'https://imgur.com/ny5ELvD.png' },
+        { name: 'Cinco Séptimos', category: 'Fracciones', image: 'https://imgur.com/cxcL3Yl.png' },
+        { name: 'Veinticinco', category: 'Números impares', image: 'https://imgur.com/jnlFsNk.png' },
+        { name: 'Diez Quintos', category: 'Fracciones', image: 'https://imgur.com/jmBPDEb.png' }
       ]
     },
     {
@@ -76,41 +76,41 @@ export const LEVELS_CONFIG = [
       title: "TORTUGA ALIMENTICIA",
       level: "NVL. 3",
       categories: [
-        'Frutas',
-        'Verduras',
-        'Legumbres',
-        'Lácteos',
-        'Carnes'
+        'Números pares',
+        'Números impares',
+        'Figuras',
+        'Fracciones propias',
+        'Fracciones impropias'
       ],
       initialCategories: {
-        'Frutas': [],
-        'Verduras': [],
-        'Legumbres': [],
-        'Lácteos': [],
-        'Carnes': []
+        'Números pares': [],
+        'Números impares': [],
+        'Figuras': [],
+        'Fracciones propias': [],
+        'Fracciones impropias': []
       },
       cardsToShow: 5,
       foodItems: [
-        { name: 'Sandía', category: 'Frutas', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/watermelon-42393_1280.png' },
-        { name: 'Kiwi', category: 'Frutas', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/kiwi-42401_1280.png' },
-        { name: 'Piña', category: 'Frutas', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/pineapple-42383_1280.png' },
-        { name: 'Tomate', category: 'Verduras', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/tomato-42383_1280.png' },
-        { name: 'Pepino', category: 'Verduras', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/cucumber-42396_1280.png' },
-        { name: 'Pimiento', category: 'Verduras', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/pepper-42348_1280.png' },
-        { name: 'Calabaza', category: 'Verduras', image: 'https://cdn.pixabay.com/photo/2012/04/26/18/41/pumpkin-42348_1280.png' },
-        { name: 'Yogurt', category: 'Lácteos', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/13/yogurt-156133_1280.png' },
-        { name: 'Mantequilla', category: 'Lácteos', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/13/butter-156973_1280.png' },
-        { name: 'Crema', category: 'Lácteos', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/30/cream-575730_1280.png' },
-        { name: 'Frijoles Negros', category: 'Legumbres', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/35/black-beans-575840_1280.png' },
-        { name: 'Ejotes', category: 'Legumbres', image: 'https://cdn.pixabay.com/photo/2014/12/21/23/34/green-beans-575832_1280.png' },
-        { name: 'Soya', category: 'Legumbres', image: 'https://cdn.pixabay.com/photo/2013/07/13/10/51/soy-157014_1280.png' },
-        { name: 'Res', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/32/beef-158243_1280.png' },
-        { name: 'Cerdo', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/32/meat-158238_1280.png' },
-        { name: 'Cordero', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/33/meat-157230_1280.png' },
-        { name: 'Ternera', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/32/veal-158244_1280.png' },
-        { name: 'Jamón', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2013/07/13/11/33/ham-158257_1280.png' },
-        { name: 'Pato', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2014/04/02/10/56/duck-305022_1280.png' },
-        { name: 'Conejo', category: 'Carnes', image: 'https://cdn.pixabay.com/photo/2014/04/02/10/54/rabbit-304822_1280.png' }
+        { name: 'Treinta', category: 'Números pares', image: 'https://imgur.com/HXj6JYq.png' },
+        { name: 'Cuarenta y dos', category: 'Números pares', image: 'https://imgur.com/fiQw2wI.png' },
+        { name: 'Ochenta', category: 'Números pares', image: 'https://imgur.com/9S8zK8I.png' },
+        { name: 'Treinta y uno', category: 'Números impares', image: 'https://imgur.com/zpMLNea.png' },
+        { name: 'Cincuenta y siete', category: 'Números impares', image: 'https://imgur.com/aE6FphM.png' },
+        { name: 'Setenta y cinco', category: 'Números impares', image: 'https://imgur.com/4ib25oM.png' },
+        { name: 'Nueve', category: 'Números impares', image: 'https://imgur.com/MZFtFzQ.png' },
+        { name: 'Cuatro novenos', category: 'Fracciones propias', image: 'https://imgur.com/PKZi2tz.png' },
+        { name: 'Diez onceavos', category: 'Fracciones propias', image: 'https://imgur.com/ZyQgmVV.png' },
+        { name: 'Catorce Veinticuatroavos', category: 'Fracciones propias', image: 'https://imgur.com/1vPUYcv.png' },
+        { name: 'Rombo', category: 'Figuras', image: 'https://imgur.com/UScyazq.png' },
+        { name: 'Estrella', category: 'Figuras', image: 'https://imgur.com/1y2LZHd.png' },
+        { name: 'Decágono', category: 'Figuras', image: 'https://imgur.com/i00EWbp.png' },
+        { name: 'Corazón', category: 'Figuras', image: 'https://imgur.com/Dk4d7e9.png' },
+        { name: 'Quince onceavos', category: 'Fracciones impropias', image: 'https://imgur.com/dn490nc.png' },
+        { name: 'Veinte medios', category: 'Fracciones impropias', image: 'https://imgur.com/22LrB4G.png' },
+        { name: 'Cincuenta y seis quintos', category: 'Fracciones impropias', image: 'https://imgur.com/LQNYU4y.png' },
+        { name: 'Cuarenta y cuatro treinta y ochoavos', category: 'Fracciones impropias', image: 'https://imgur.com/MBx5k5N.png' },
+        { name: 'Veintiún décimos', category: 'Fracciones impropias', image: 'https://imgur.com/Qbtezv1.png' },
+        { name: 'Setenta diecinueveavos', category: 'Fracciones impropias', image: 'https://imgur.com/JQy1QEd.png' }
       ]
     }
   ];

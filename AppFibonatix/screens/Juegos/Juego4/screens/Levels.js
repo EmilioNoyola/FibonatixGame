@@ -5,7 +5,7 @@ import Fontisto from '@expo/vector-icons/Fontisto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../../../apis/FontsConfigure';
+import useCustomFonts from '../../../../assets/apis/FontsConfigure';
 
 function Levels({ navigation }) {
   const [unlockedLevels, setUnlockedLevels] = useState([1]);  // Nivel 1 desbloqueado por defecto

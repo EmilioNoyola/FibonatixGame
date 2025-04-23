@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 // Fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Íconos
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -16,7 +16,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import EvilIcons from '@expo/vector-icons/EvilIcons';
 
 // Alertas
-import CustomAlert from '../../apis/Alertas';
+import CustomAlert from '../../assets/apis/Alertas';
 
 import { Linking } from 'react-native';
 

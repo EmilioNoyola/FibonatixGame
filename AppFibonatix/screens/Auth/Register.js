@@ -7,14 +7,14 @@ import { useState, useEffect } from 'react';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; 
 
 // Alertas
-import CustomAlert from '../../apis/Alertas';
+import CustomAlert from '../../assets/apis/Alertas';
 
 // Fuentes personalizadas.
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Importamos nuestros servicios de Firebase
-import '../../apis/Credentials';
-import { userService, registerWithCode, getAuthErrorType } from '../../apis/FirebaseService';
+import '../../assets/firebase/Credentials';
+import { userService, registerWithCode, getAuthErrorType } from '../../assets/firebase/FirebaseService';
 
 // Expo Camera
 import { Camera, CameraView } from 'expo-camera';
@@ -23,7 +23,7 @@ import { Camera, CameraView } from 'expo-camera';
 import { RegisterStyles } from "../../styles/UserAuthenticationStyles/RegisterStyles";
 
 // Importa el servicio de sincronización
-import { syncService } from '../../apis/ApiService';
+import { syncService } from '../../assets/db/ApiService';
 
 export default function Register({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();

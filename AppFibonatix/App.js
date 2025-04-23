@@ -1,10 +1,11 @@
-import Navigation from "./screens/Main/Navigation";
+import React from 'react';
+import Navigation from './screens/Main/Navigation';
+import { AppProvider } from './assets/db/AppContext';
 
 export default function App() {
-
   return (
-
-    <Navigation />
-
+    <AppProvider>
+      <Navigation />
+    </AppProvider>
   );
 }

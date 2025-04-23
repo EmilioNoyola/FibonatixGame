@@ -5,7 +5,7 @@ import Fontisto from '@expo/vector-icons/Fontisto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../../../apis/FontsConfigure';
+import useCustomFonts from '../../../../assets/apis/FontsConfigure';
 
 // Configuración de niveles
 import { LEVEL_CONFIG } from './levelConfig';

@@ -15,7 +15,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 import { DeviceEventEmitter } from 'react-native'; // Importar DeviceEventEmitter
 
@@ -39,7 +39,7 @@ export default function CustomDrawer(props) {
             const userDoc = await getDoc(userRef);
             if (userDoc.exists()) {
                 setUsername(userDoc.data().username);
-                setProfileImage(userDoc.data().profileImage || null); // Asegurar que haya una imagen
+                setProfileImage(userDoc.data().profileImage || null); 
             }
         }
     };
@@ -177,17 +177,14 @@ export default function CustomDrawer(props) {
 }
 
 const styles = StyleSheet.create({
-
     container: {
         flex: 1,
         backgroundColor: '#F4F5CB', // Color de fondo del contenedor
     },
-
     headerContent: {
         backgroundColor: '#F4F5CB', // Color de fondo para no generar espaciado inesperado
         alignItems: 'center', // Centrado de los elementos dentro del headerContent
     },
-
     header: {
         width: '100%',
         height: 140, // Fijamos la altura del header
@@ -195,7 +192,6 @@ const styles = StyleSheet.create({
             borderBottomLeftRadius: 15,
             borderBottomRightRadius: 15,
     },
-
     circle: {
         marginTop: -80, // Desplazamos el círculo hacia arriba para que quede entre el header y el fondo
         width: 170,  // Aumentamos el tamaño del círculo
@@ -205,20 +201,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center', // Centra el ícono dentro del círculo
     },
-
     profileImage: {
         width: 160,
         height: 160,
         borderRadius: 80, // Para que sea un círculo
     },
-
     TextUser: {
         fontSize: 34,
         color: '#706103',
         fontFamily: 'Quicksand',
         textAlign: 'center',
     },
-
     TextEmail: {
         marginTop: 10,
         fontSize: 23,
@@ -226,7 +219,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontFamily: 'Quicksand_SemiBold',
     },
-
     content: {
         display: 'flex',
         paddingTop: 20,
@@ -234,34 +226,28 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center'
     },
-
     Button: {
         margin: 5,
         padding: 10,
         borderRadius: 20,
     },
-
     row: {
         flexDirection: 'row', // Alinear elementos en fila
         alignItems: 'center', // Centrar verticalmente
-    },
-        
+    },       
     icon: {
         marginRight: 10, // Espacio entre ícono y texto
     },
-
     TextButton: {
         fontSize: 20,
         fontFamily: 'Quicksand',
         color: '#706103',
     },
-
     containerLogoutButton: {
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 15,
     },
-
     logoutButton: {
         width: 260,
         height: 58,
@@ -274,12 +260,10 @@ const styles = StyleSheet.create({
             shadowRadius: 4,
             elevation: 5,
     },
-
     logoutText: {
         color: 'white',
         fontFamily: 'Quicksand',
     },
-
     footer: {
         height: 120,
         backgroundColor: '#F4ED5E',
@@ -289,7 +273,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         position: 'relative',
     },
-
     circleLogo: {
         width: 100,
         height: 100,
@@ -300,17 +283,14 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -40,
     },
-
     image: {
         width: 85,
         height: 85,
     },
-
     textFooter: {
         fontSize: 30,
         color: '#706103',
         fontFamily: 'Quicksand',
         marginTop: 20,
     },
-
 });

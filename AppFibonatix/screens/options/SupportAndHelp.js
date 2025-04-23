@@ -9,13 +9,13 @@ import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Collapsible from 'react-native-collapsible';
 
 // Fuentes
-import useCustomFonts from '../../apis/FontsConfigure';
+import useCustomFonts from '../../assets/apis/FontsConfigure';
 
 // Íconos
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Alertas Personalizadas
-import CustomAlert from '../../apis/Alertas';
+import CustomAlert from '../../assets/apis/Alertas';
 
 const groupedSections = [
     {
