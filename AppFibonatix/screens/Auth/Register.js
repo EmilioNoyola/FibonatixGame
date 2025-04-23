@@ -22,12 +22,19 @@ import { Camera, CameraView } from 'expo-camera';
 // Estilos
 import { RegisterStyles } from "../../styles/UserAuthenticationStyles/RegisterStyles";
 
-// Importa el servicio de sincronización
-import { syncService } from '../../assets/db/ApiService';
+// Contexto global
+import { useAppContext } from '../../assets/db/AppContext'; // Ajustamos el import del contexto
+
+// Axios para hacer solicitudes HTTP
+import axios from 'axios';
+
+const API_BASE_URL = 'http://192.168.56.1:3000';
 
 export default function Register({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    if (!fontsLoaded) return null; // Si las fuentes no están cargadas, se retorna null
+    const { setGlobalData, setPersonalityTraits, setClientId } = useAppContext(); // Añadimos setClientId
+
+    if (!fontsLoaded) return null;
 
     // Estados para controlar la visibilidad de las alertas
     const [alerts, setAlerts] = useState({ type: null, visible: false });
@@ -41,11 +48,11 @@ export default function Register({ navigation }) {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [activationCode, setActivationCode] = useState('');// Estado para el código de activación
-    const [isModalVisible, setModalVisible] = useState(false);// Estado para controlar la visibilidad del modal del escáner
+    const [activationCode, setActivationCode] = useState('');
+    const [isModalVisible, setModalVisible] = useState(false);
     const [hasPermission, setHasPermission] = useState(null);
 
-    const [isLoading, setIsLoading] = useState(false);  // Estado para el indicador de carga
+    const [isLoading, setIsLoading] = useState(false);
 
     // Registrar nuevo usuario
     const registrar = async () => {
@@ -53,7 +60,7 @@ export default function Register({ navigation }) {
             setIsLoading(false);
             return showAlert('emptyFields');
         }
-        
+
         setIsLoading(true);
         try {
             // Verificar si el nombre de usuario ya existe
@@ -61,29 +68,51 @@ export default function Register({ navigation }) {
                 setIsLoading(false);
                 return showAlert('usernameTaken');
             }
-            
+
             // Registrar usuario con código de activación en Firebase
-            await registerWithCode(username, email, password, activationCode);
-            
-            await syncService.startSync();
-            
+            const userCredential = await registerWithCode(username, email, password, activationCode);
+            const uid = userCredential.user.uid;
+
+            // Registrar usuario en el servidor y obtener el client_ID
+            const signupResponse = await axios.post(`${API_BASE_URL}/firebase/signup`, {
+                client_fire_base_ID: uid,
+                username_user: username,
+            });
+
+            const client_ID = signupResponse.data.client_ID;
+            setClientId(client_ID); // Almacenar el client_ID en el contexto
+            console.log('Client ID obtenido:', client_ID);
+
+            try {
+                // Obtener datos globales del usuario
+                const userDataResponse = await axios.get(`${API_BASE_URL}/firebase/api/userData/${client_ID}`);
+                setGlobalData(userDataResponse.data);
+
+                // Obtener rasgos de personalidad
+                const traitsResponse = await axios.get(`${API_BASE_URL}/firebase/api/users/${client_ID}/personality`);
+                setPersonalityTraits(traitsResponse.data);
+            } catch (fetchError) {
+                console.error('Error al obtener datos del usuario o rasgos de personalidad:', fetchError);
+                // Mostrar una alerta genérica, pero permitir que el registro continúe
+                showAlert('dataFetchError');
+            }
+
             setIsLoading(false);
             showAlert('registerSuccess');
-            
         } catch (error) {
             console.error("Error en registro:", error);
             setIsLoading(false);
-            
+
             let errorType = 'registerError';
             if (error.code) {
                 errorType = getAuthErrorType(error.code);
             } else if (error.message && error.message.includes("Código inválido")) {
                 errorType = 'invalidCode';
             }
-            
+
             showAlert(errorType);
         }
-    };  
+    };
 
     useEffect(() => {
         (async () => {
@@ -94,8 +123,8 @@ export default function Register({ navigation }) {
 
     // Manejar el escaneo del código QR
     const handleBarCodeScanned = ({ data }) => {
-        setActivationCode(data);  // Coloca el código escaneado en el TextInput
-        setModalVisible(false);   // Cierra el modal
+        setActivationCode(data);
+        setModalVisible(false);
     };
 
     // Devuelve el título de cada alerta.
@@ -112,7 +141,7 @@ export default function Register({ navigation }) {
             default: return "Alerta";
         }
     };
-    
+
     // Devuelve el mensaje de la alerta.
     const mostrarMensajeAlerta = (type) => {
         switch (type) {
@@ -143,7 +172,7 @@ export default function Register({ navigation }) {
                     <Text style={RegisterStyles.headerText}>REGISTRO</Text>
                 </View>
 
-                <ScrollView style={{ flex: 1}} keyboardShouldPersistTaps="handled">
+                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
                     <View style={RegisterStyles.inputContainer}>
                         <TextInput
                             placeholder="Nombre de Usuario"
@@ -157,20 +186,20 @@ export default function Register({ navigation }) {
                             onChangeText={setEmail}
                             style={RegisterStyles.input}
                         />
-                        <View style={{ position: 'relative'}}>
+                        <View style={{ position: 'relative' }}>
                             <TextInput
                                 placeholder="Contraseña"
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry={secureTextEntry}  
+                                secureTextEntry={secureTextEntry}
                                 style={RegisterStyles.input}
                             />
-                            <Pressable 
-                                style={RegisterStyles.eyeIconContainer} 
-                                onPress={() => setSecureTextEntry(!secureTextEntry)} 
+                            <Pressable
+                                style={RegisterStyles.eyeIconContainer}
+                                onPress={() => setSecureTextEntry(!secureTextEntry)}
                             >
                                 <Icon
-                                    name={secureTextEntry ? "eye" : "eye-off"} 
+                                    name={secureTextEntry ? "eye" : "eye-off"}
                                     size={38}
                                     color="#0B5A39"
                                     style={RegisterStyles.eyeIconBelow}
@@ -178,12 +207,12 @@ export default function Register({ navigation }) {
                             </Pressable>
                         </View>
                         <View style={{ position: 'relative' }}>
-                            <TextInput 
-                                placeholder="Código de Activación" 
-                                value={activationCode} 
-                                style={RegisterStyles.input} 
-                                editable={true} 
-                                onChangeText={setActivationCode} 
+                            <TextInput
+                                placeholder="Código de Activación"
+                                value={activationCode}
+                                style={RegisterStyles.input}
+                                editable={true}
+                                onChangeText={setActivationCode}
                             />
                             <Pressable style={RegisterStyles.eyeIconContainer} onPress={() => setModalVisible(true)}>
                                 <Icon name='qrcode' size={38} color="#0B5A39" style={RegisterStyles.eyeIconBelow} />
@@ -194,8 +223,8 @@ export default function Register({ navigation }) {
 
                 <View style={RegisterStyles.footer}>
                     <View style={RegisterStyles.buttonContainer}>
-                        <Pressable 
-                            style={({pressed}) => [
+                        <Pressable
+                            style={({ pressed }) => [
                                 {
                                     backgroundColor: pressed ? '#1f8a83' : '#239790',
                                 },
@@ -211,7 +240,7 @@ export default function Register({ navigation }) {
                         <Text style={RegisterStyles.footerText}>¿Ya tienes cuenta? Inicia Sesión</Text>
                     </Pressable>
                 </View>
-            </View>   
+            </View>
 
             {/* Modal para escanear el código QR */}
             <Modal visible={isModalVisible} animationType="slide">

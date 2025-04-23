@@ -15,16 +15,17 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FoodShop from './FoodShop';
 import InventaryList from './InventaryList';
 
-export default function FoodRoomScreen(props) {
+import { useAppContext } from '../../assets/db/AppContext';
 
+export default function FoodRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+    const { globalData } = useAppContext(); // Añade esta línea para acceder a globalData
     if (!fontsLoaded) return null;
 
     const navigation = useNavigation();
 
     return (
         <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
-
             <StatusBar
                 barStyle="dark-content"
                 translucent={true}
@@ -46,7 +47,7 @@ export default function FoodRoomScreen(props) {
                                     </View>   
                                 </View>
                                 <View style={styles.containerBarEmotion}>
-                                    <View style={styles.BarEmotion}></View>
+                                    <View style={[styles.BarEmotion, { width: (globalData.foodPercentage || 0) * 2.5 }]}></View>
                                 </View>
                             </View>
                         </View>
@@ -67,11 +68,10 @@ export default function FoodRoomScreen(props) {
                     </Pressable>
                 </View>
                 <View style={styles.containerFood}>
-                        <InventaryList />
+                    <InventaryList />
                     <Text style={styles.textFood}>Almacén</Text>
                 </View>
             </View>
-            
         </SafeAreaView>
     );
 }

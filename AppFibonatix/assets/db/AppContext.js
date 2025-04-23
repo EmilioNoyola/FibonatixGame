@@ -9,12 +9,13 @@ export const useAppContext = () => useContext(AppContext);
 export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [clientId, setClientId] = useState(null);
     const [globalData, setGlobalData] = useState({
         coins: 0,
         trophies: 0,
         gamePercentage: 0,
         foodPercentage: 0,
-        sleepPercentage: 0
+        sleepPercentage: 0,
     });
     const [personalityTraits, setPersonalityTraits] = useState([]);
     const [error, setError] = useState(null);
@@ -23,48 +24,134 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         const auth = getAuth();
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            setUser(currentUser);
-            setError(null); // Reinicia el error
-            
-            if (currentUser) {
-                try {
-                    const userData = await globalDataService.getUserData(currentUser.uid);
-                    setGlobalData(userData);
-                    
-                    const traits = await personalityService.getPersonalityTraits(currentUser.uid);
-                    setPersonalityTraits(traits);
-                } catch (error) {
-                    console.error("Error loading user data:", error);
-                    setError("No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo.");
-                }
+            if (!currentUser) {
+                setUser(null);
+                setClientId(null);
+                setGlobalData({
+                    coins: 0,
+                    trophies: 0,
+                    gamePercentage: 0,
+                    foodPercentage: 0,
+                    sleepPercentage: 0,
+                });
+                setPersonalityTraits([]);
+                setError(null);
+                setLoading(false);
+                return;
             }
-            
+    
+            setUser(currentUser);
+            setError(null);
+    
+            try {
+                if (!clientId) {
+                    const fetchedClientId = await globalDataService.getUserData(currentUser.uid, setClientId);
+                    setGlobalData(fetchedClientId);
+                }
+    
+                if (clientId && personalityTraits.length === 0) {
+                    const traits = await personalityService.getPersonalityTraits(clientId);
+                    setPersonalityTraits(traits);
+                }
+            } catch (err) {
+                if (err.message === 'CLIENT_NOT_FOUND') {
+                    // El usuario está autenticado en Firebase pero no registrado en MySQL
+                    setError("Usuario no registrado en el servidor. Por favor, regístrate nuevamente.");
+                    // Opcional: cerrar sesión automáticamente
+                    auth.signOut();
+                    return;
+                }
+                console.error("Error loading user data:", err);
+                setError("No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo.");
+            }
+    
             setLoading(false);
         });
-        
+    
         return () => unsubscribe();
-    }, []);
+    }, [clientId]);
 
+    // Disminuir gamePercentage con el tiempo y actualizar en la base de datos
     useEffect(() => {
-        const decreaseGamePercentage = () => {
+        if (!user || !clientId) return;
+
+        const decreaseGamePercentage = async () => {
             setGlobalData(prev => {
-                const newPercentage = Math.max((prev.gamePercentage || 0) - 10, 0); // Disminuye 10%, mínimo 0
+                const newPercentage = Math.max((prev.gamePercentage || 0) - 3, 0);
+                if (newPercentage !== prev.gamePercentage) {
+                    incrementGamePercentage(newPercentage - prev.gamePercentage);
+                }
                 return { ...prev, gamePercentage: newPercentage };
             });
         };
-    
-        const interval = setInterval(decreaseGamePercentage, 30000); // Cada 30 segundos (30000 ms)
-        return () => clearInterval(interval);
-    }, []);
 
-    const incrementGamePercentage = async (amount) => {
-        if (!user) return;
-    
+        const interval = setInterval(decreaseGamePercentage, 30000);
+        return () => clearInterval(interval);
+    }, [user, clientId]);
+
+    // Disminuir foodPercentage con el tiempo
+    useEffect(() => {
+        if (!user || !clientId) return;
+
+        const decreaseFoodPercentage = async () => {
+            setGlobalData(prev => {
+                const newPercentage = Math.max((prev.foodPercentage || 0) - 2, 0);
+                if (newPercentage !== prev.foodPercentage) {
+                    updateFoodPercentage(newPercentage - prev.foodPercentage);
+                }
+                return { ...prev, foodPercentage: newPercentage };
+            });
+        };
+
+        const interval = setInterval(decreaseFoodPercentage, 30000);
+        return () => clearInterval(interval);
+    }, [user, clientId]);
+
+    // Disminuir sleepPercentage con el tiempo
+    useEffect(() => {
+        if (!user || !clientId) return;
+
+        const decreaseSleepPercentage = async () => {
+            setGlobalData(prev => {
+                const newPercentage = Math.max((prev.sleepPercentage || 0) - 3, 0);
+                if (newPercentage !== prev.sleepPercentage) {
+                    updateSleepPercentage(newPercentage - prev.sleepPercentage);
+                }
+                return { ...prev, sleepPercentage: newPercentage };
+            });
+        };
+
+        const interval = setInterval(decreaseSleepPercentage, 30000);
+        return () => clearInterval(interval);
+    }, [user, clientId]);
+
+    // Método para disminuir foodPercentage cuando el usuario juega
+    const decreaseFoodPercentageOnGamePlay = async () => {
+        if (!user || !clientId) return;
+
         try {
-            const updatedData = await globalDataService.updateGamePercentage(amount);
+            setGlobalData(prev => {
+                const newPercentage = Math.max((prev.foodPercentage || 0) - 5, 0);
+                if (newPercentage !== prev.foodPercentage) {
+                    updateFoodPercentage(newPercentage - prev.foodPercentage);
+                }
+                return { ...prev, foodPercentage: newPercentage };
+            });
+        } catch (error) {
+            console.error("Error decreasing food percentage on gameplay:", error);
+            throw error;
+        }
+    };
+
+    // Método para actualizar gamePercentage
+    const incrementGamePercentage = async (amount) => {
+        if (!user || !clientId) return;
+
+        try {
+            const updatedData = await globalDataService.updateGamePercentage(amount, clientId);
             setGlobalData(prev => ({
                 ...prev,
-                gamePercentage: updatedData.gamePercentage
+                gamePercentage: updatedData.gamePercentage,
             }));
             return updatedData;
         } catch (error) {
@@ -73,15 +160,49 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Métodos para actualizar datos
-    const updateCoins = async (amount) => {
-        if (!user) return;
-        
+    // Método para actualizar foodPercentage en la base de datos
+    const updateFoodPercentage = async (amount) => {
+        if (!user || !clientId) return;
+
         try {
-            const updatedData = await globalDataService.updateCoins(amount); // Elimina user.uid
+            const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
             setGlobalData(prev => ({
                 ...prev,
-                coins: updatedData.coins
+                foodPercentage: updatedData.foodPercentage,
+            }));
+            return updatedData;
+        } catch (error) {
+            console.error("Error updating food percentage:", error);
+            throw error;
+        }
+    };
+
+    // Método para actualizar sleepPercentage en la base de datos
+    const updateSleepPercentage = async (amount) => {
+        if (!user || !clientId) return;
+
+        try {
+            const updatedData = await globalDataService.updateSleepPercentage(amount, clientId);
+            setGlobalData(prev => ({
+                ...prev,
+                sleepPercentage: updatedData.sleepPercentage,
+            }));
+            return updatedData;
+        } catch (error) {
+            console.error("Error updating sleep percentage:", error);
+            throw error;
+        }
+    };
+
+    // Métodos existentes para monedas y trofeos
+    const updateCoins = async (amount) => {
+        if (!user || !clientId) return;
+
+        try {
+            const updatedData = await globalDataService.updateCoins(amount, clientId);
+            setGlobalData(prev => ({
+                ...prev,
+                coins: updatedData.coins,
             }));
             return updatedData;
         } catch (error) {
@@ -89,15 +210,15 @@ export const AppProvider = ({ children }) => {
             throw error;
         }
     };
-    
+
     const updateTrophies = async (amount) => {
-        if (!user) return;
-        
+        if (!user || !clientId) return;
+
         try {
-            const updatedData = await globalDataService.updateTrophies(amount); // Elimina user.uid
+            const updatedData = await globalDataService.updateTrophies(amount, clientId);
             setGlobalData(prev => ({
                 ...prev,
-                trophies: updatedData.trophies
+                trophies: updatedData.trophies,
             }));
             return updatedData;
         } catch (error) {
@@ -107,15 +228,13 @@ export const AppProvider = ({ children }) => {
     };
 
     const refreshUserData = async () => {
-        if (!user) return;
-        
+        if (!user || !clientId) return;
+
         try {
-            const userData = await globalDataService.getUserData(user.uid);
+            const userData = await globalDataService.getUserData(user.uid, setClientId);
             setGlobalData(userData);
-            
-            const traits = await personalityService.getPersonalityTraits(user.uid);
+            const traits = await personalityService.getPersonalityTraits(clientId);
             setPersonalityTraits(traits);
-            
             return userData;
         } catch (error) {
             console.error("Error refreshing user data:", error);
@@ -126,13 +245,20 @@ export const AppProvider = ({ children }) => {
     const value = {
         user,
         loading,
+        clientId,
+        setClientId,
         globalData,
+        setGlobalData, 
         personalityTraits,
+        setPersonalityTraits, 
         updateCoins,
         updateTrophies,
         refreshUserData,
         incrementGamePercentage,
-        error // Añade el estado de error
+        decreaseFoodPercentageOnGamePlay,
+        updateFoodPercentage,
+        updateSleepPercentage,
+        error,
     };
 
     return (

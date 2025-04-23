@@ -19,65 +19,54 @@ import MissionsScreen from './MissionsScreen';
 // Foco de sueño
 import { useFocus } from '../../assets/apis/FocusContext';
 
+import { useAppContext } from '../../assets/db/AppContext';
+
 export default function BeedRoomScreen(props) {
-    
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+    const { globalData } = useAppContext(); // Añade esta línea para acceder a globalData
     if (!fontsLoaded) return null;
 
     const navigation = useNavigation();
-
-    // Estado para alternar entre FocusOn y FocusOff
-    const { isFocusOn, setIsFocusOn } = useFocus(); // Usa el contexto 
-
-    // Estado local para controlar la visibilidad del overlay
+    const { isFocusOn, setIsFocusOn } = useFocus();
     const [showOverlay, setShowOverlay] = useState(false);
-
-    // Valor animado para la opacidad del overlay
     const overlayOpacity = useRef(new Animated.Value(0)).current;
-
-    // Estado para evitar múltiples toggles consecutivos
     const [toggleDisabled, setToggleDisabled] = useState(false);
 
-    // Efecto para animar el overlay al cambiar isFocusOn
     useEffect(() => {
         if (!isFocusOn) {
-            // Cuando se activa FocusOff: mostramos y animamos el overlay (fade in)
             setShowOverlay(true);
             Animated.timing(overlayOpacity, {
                 toValue: 1,
                 duration: 300,
                 useNativeDriver: true,
             }).start(() => {
-                setToggleDisabled(false); // Rehabilita el toggle al finalizar el fade in
+                setToggleDisabled(false);
             });
         } else {
-            // Cuando se desactiva FocusOff: animamos el fade out y luego ocultamos el overlay
             Animated.timing(overlayOpacity, {
                 toValue: 0,
                 duration: 300,
                 useNativeDriver: true,
             }).start(() => {
                 setShowOverlay(false);
-                setToggleDisabled(false); // Rehabilita el toggle al finalizar el fade out
+                setToggleDisabled(false);
             });
         }
     }, [isFocusOn, overlayOpacity]);    
 
     useEffect(() => {
         const onBackPress = () => {
-          // Si FocusOff está activo, bloquea el retroceso
             if (!isFocusOn) {
-                return true; // Impide el comportamiento por defecto
+                return true;
             }
-                return false;
+            return false;
         };
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
         return () => subscription.remove();
     }, [isFocusOn]);
 
-    // Función para alternar el estado
     const toggleFocus = () => {
-        if (toggleDisabled) return; // Evita múltiples presiones seguidas
+        if (toggleDisabled) return;
         setToggleDisabled(true);
         setIsFocusOn(prev => !prev);
     };    
@@ -117,7 +106,7 @@ export default function BeedRoomScreen(props) {
                                         </View>
                                     </View>
                                     <View style={styles.containerBarEmotion}>
-                                        <View style={styles.BarEmotion}></View>
+                                        <View style={[styles.BarEmotion, { width: (globalData.sleepPercentage || 0) * 2.5 }]}></View>
                                     </View>
                                 </View>
                             </View>

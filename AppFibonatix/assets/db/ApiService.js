@@ -11,16 +11,21 @@ const api = axios.create({
 });
 
 // Función para obtener el client_ID desde Firebase
-const getClientId = async () => {
+const getClientId = async (uid, setClientId) => {
     const auth = getAuth();
-    const user = auth.currentUser;
+    const user = auth.currentUser || { uid };
     if (!user) throw new Error('Usuario no autenticado');
-    
+
     try {
         const response = await api.post('/firebase/getClientId', { client_fire_base_ID: user.uid });
         console.log('Respuesta de /firebase/getClientId:', response.data);
+        if (setClientId) setClientId(response.data.client_ID);
         return response.data.client_ID;
     } catch (error) {
+        if (error.response && error.response.status === 404) {
+            // Cliente no encontrado: manejar este caso de manera específica
+            throw new Error('CLIENT_NOT_FOUND');
+        }
         console.error('Error en getClientId:', error.response ? error.response.data : error.message);
         throw error;
     }
@@ -28,43 +33,61 @@ const getClientId = async () => {
 
 // Servicios para datos globales del usuario
 export const globalDataService = {
-    getUserData: async () => {
+    getUserData: async (uid, setClientId) => {
         try {
-            const client_ID = await getClientId();
+            const client_ID = await getClientId(uid, setClientId);
             const response = await api.get(`/firebase/api/userData/${client_ID}`);
             return response.data;
         } catch (error) {
+            if (error.message === 'CLIENT_NOT_FOUND') {
+                throw error; // Propagar el error específico
+            }
             console.error('Error al obtener datos del usuario:', error);
             throw error;
         }
     },
-    updateCoins: async (amount) => {
+    updateCoins: async (amount, clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.post(`/firebase/api/userData/${client_ID}/coins`, { amount });
+            const response = await api.post(`/firebase/api/userData/${clientId}/coins`, { amount });
             return response.data;
         } catch (error) {
             console.error('Error al actualizar monedas:', error);
             throw error;
         }
     },
-    updateTrophies: async (amount) => {
+    updateTrophies: async (amount, clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.post(`/firebase/api/userData/${client_ID}/trophies`, { amount });
+            const response = await api.post(`/firebase/api/userData/${clientId}/trophies`, { amount });
             return response.data;
         } catch (error) {
             console.error('Error al actualizar trofeos:', error);
             throw error;
         }
     },
-    updateGamePercentage: async (amount) => {
+    updateGamePercentage: async (amount, clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.post(`/firebase/api/userData/${client_ID}/gamePercentage`, { amount });
+            const response = await api.post(`/firebase/api/userData/${clientId}/gamePercentage`, { amount });
             return response.data;
         } catch (error) {
             console.error('Error al actualizar porcentaje de juego:', error);
+            throw error;
+        }
+    },
+    updateFoodPercentage: async (amount, clientId) => {
+        try {
+            const response = await api.post(`/firebase/api/userData/${clientId}/foodPercentage`, { amount });
+            return response.data;
+        } catch (error) {
+            console.error('Error al actualizar porcentaje de comida:', error);
+            throw error;
+        }
+    },
+    updateSleepPercentage: async (amount, clientId) => {
+        try {
+            const response = await api.post(`/firebase/api/userData/${clientId}/sleepPercentage`, { amount });
+            return response.data;
+        } catch (error) {
+            console.error('Error al actualizar porcentaje de sueño:', error);
             throw error;
         }
     },
@@ -81,20 +104,18 @@ export const gameService = {
             throw error;
         }
     },
-    getGameProgress: async () => {
+    getGameProgress: async (clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.post('/firebase/getGameProgress', { client_ID });
+            const response = await api.post('/firebase/getGameProgress', { client_ID: clientId });
             return response.data;
         } catch (error) {
             console.error('Error al obtener progreso de juegos:', error);
             throw error;
         }
     },
-    updateGameProgress: async (gameData) => {
+    updateGameProgress: async (gameData, clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.post('/firebase/updateGameProgress', { client_ID, ...gameData });
+            const response = await api.post('/firebase/updateGameProgress', { client_ID: clientId, ...gameData });
             return response.data;
         } catch (error) {
             console.error('Error al actualizar progreso de juego:', error);
@@ -105,10 +126,9 @@ export const gameService = {
 
 // Servicios para personalidad de la mascota
 export const personalityService = {
-    getPersonalityTraits: async () => {
+    getPersonalityTraits: async (clientId) => {
         try {
-            const client_ID = await getClientId();
-            const response = await api.get(`/firebase/api/users/${client_ID}/personality`);
+            const response = await api.get(`/firebase/api/users/${clientId}/personality`);
             return response.data;
         } catch (error) {
             console.error('Error al obtener rasgos de personalidad:', error);
