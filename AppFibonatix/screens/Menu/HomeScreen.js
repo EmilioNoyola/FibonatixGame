@@ -94,6 +94,12 @@ const Header = React.memo(({ onMenuPress, gamePercentage }) => {
 const UserInfo = React.memo(() => {
     const { globalData } = useAppContext();
     
+    // Cálculo del nivel basado en trofeos
+    const calculateLevel = (trophies) => {
+        const trophyCount = trophies || 0;
+        return Math.floor(trophyCount / 10) + 1; // Nivel 1 para 0-9 trofeos, Nivel 2 para 10-19, etc.
+    };
+    
     return (
         <View style={styles.containerInfo}>
             <View style={styles.information}>
@@ -104,7 +110,7 @@ const UserInfo = React.memo(() => {
 
                 <View style={styles.containerLevel}>
                     <View style={styles.level}>
-                        <Text style={styles.textLevel}>{Math.floor((globalData.gamePercentage || 0) / 10) + 1}</Text>
+                        <Text style={styles.textLevel}>{calculateLevel(globalData.trophies)}</Text>
                     </View>
                 </View>
 

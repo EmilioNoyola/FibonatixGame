@@ -28,6 +28,8 @@ import { useAppContext } from '../../assets/db/AppContext'; // Ajustamos el impo
 // Axios para hacer solicitudes HTTP
 import axios from 'axios';
 
+import { getAuth, signOut } from 'firebase/auth';
+
 const API_BASE_URL = 'http://192.168.56.1:3000';
 
 export default function Register({ navigation }) {
@@ -54,7 +56,9 @@ export default function Register({ navigation }) {
 
     const [isLoading, setIsLoading] = useState(false);
 
-    // Registrar nuevo usuario
+    const auth = getAuth();
+
+    // Registrar un nuevo usuario.
     const registrar = async () => {
         if (!email || !password || !username || !activationCode) {
             setIsLoading(false);
@@ -62,40 +66,44 @@ export default function Register({ navigation }) {
         }
 
         setIsLoading(true);
+        let userCredential;
         try {
-            // Verificar si el nombre de usuario ya existe
             if (await userService.usernameExists(username)) {
                 setIsLoading(false);
                 return showAlert('usernameTaken');
             }
 
-            // Registrar usuario con código de activación en Firebase
-            const userCredential = await registerWithCode(username, email, password, activationCode);
+            userCredential = await registerWithCode(username, email, password, activationCode);
             const uid = userCredential.user.uid;
 
-            // Registrar usuario en el servidor y obtener el client_ID
-            const signupResponse = await axios.post(`${API_BASE_URL}/firebase/signup`, {
-                client_fire_base_ID: uid,
-                username_user: username,
-            });
-
-            const client_ID = signupResponse.data.client_ID;
-            setClientId(client_ID); // Almacenar el client_ID en el contexto
-            console.log('Client ID obtenido:', client_ID);
+            let client_ID;
+            try {
+                const signupResponse = await axios.post(`${API_BASE_URL}/firebase/signup`, {
+                    client_fire_base_ID: uid,
+                    username_user: username,
+                    activation_code: activationCode, // Añadimos el activationCode a la solicitud
+                });
+                client_ID = signupResponse.data.client_ID;
+                setClientId(client_ID);
+                console.log('Client ID obtenido:', client_ID);
+            } catch (signupError) {
+                await userCredential.user.delete();
+                throw new Error('Failed to register user in server');
+            }
 
             try {
-                // Obtener datos globales del usuario
                 const userDataResponse = await axios.get(`${API_BASE_URL}/firebase/api/userData/${client_ID}`);
                 setGlobalData(userDataResponse.data);
 
-                // Obtener rasgos de personalidad
                 const traitsResponse = await axios.get(`${API_BASE_URL}/firebase/api/users/${client_ID}/personality`);
                 setPersonalityTraits(traitsResponse.data);
             } catch (fetchError) {
                 console.error('Error al obtener datos del usuario o rasgos de personalidad:', fetchError);
-                // Mostrar una alerta genérica, pero permitir que el registro continúe
                 showAlert('dataFetchError');
             }
+
+            // Cerrar sesión inmediatamente después del registro
+            await signOut(auth);
 
             setIsLoading(false);
             showAlert('registerSuccess');
@@ -108,12 +116,14 @@ export default function Register({ navigation }) {
                 errorType = getAuthErrorType(error.code);
             } else if (error.message && error.message.includes("Código inválido")) {
                 errorType = 'invalidCode';
+            } else if (error.message === 'Failed to register user in server') {
+                errorType = 'serverRegisterError';
             }
 
             showAlert(errorType);
         }
     };
-
+    
     useEffect(() => {
         (async () => {
             const { status } = await Camera.requestCameraPermissionsAsync();
@@ -138,6 +148,7 @@ export default function Register({ navigation }) {
             case 'registerError': return "Error de Registro";
             case 'registerSuccess': return "Registro Exitoso";
             case 'invalidCode': return "Código de Activación Inválido";
+            case 'serverRegisterError': return "Error del Servidor";
             default: return "Alerta";
         }
     };
@@ -151,9 +162,17 @@ export default function Register({ navigation }) {
             case 'emailInUse': return "Este correo electrónico ya está en uso.";
             case 'weakPassword': return "La contraseña debe tener al menos 6 caracteres.";
             case 'registerError': return "Hubo un problema con el registro. Intenta de nuevo.";
-            case 'registerSuccess': return "Registro completado con éxito.";
+            case 'registerSuccess': return "Registro completado con éxito. Por favor, inicia sesión.";
             case 'invalidCode': return "El código de activación no es válido o ya ha sido usado.";
+            case 'serverRegisterError': return "No se pudo completar el registro en el servidor. Intenta de nuevo.";
             default: return "";
+        }
+    };
+
+    const handleAlertConfirm = () => {
+        hideAlert();
+        if (alerts.type === 'registerSuccess') {
+            navigation.navigate('Login'); // Redirigir a Login después de un registro exitoso
         }
     };
 
@@ -242,7 +261,6 @@ export default function Register({ navigation }) {
                 </View>
             </View>
 
-            {/* Modal para escanear el código QR */}
             <Modal visible={isModalVisible} animationType="slide">
                 <View style={RegisterStyles.modalContainer}>
                     <Text style={RegisterStyles.modalTitle}>Escanea tu Código QR</Text>
@@ -271,7 +289,7 @@ export default function Register({ navigation }) {
                     showAlert={alerts.visible}
                     title={mostrarTituloAlerta(alerts.type)}
                     message={mostrarMensajeAlerta(alerts.type)}
-                    onConfirm={hideAlert}
+                    onConfirm={handleAlertConfirm} // Usar la nueva función de confirmación
                     confirmButtonColor={"#0B5A39"}
                     confirmText={"Aceptar"}
                 />

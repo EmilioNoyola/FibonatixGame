@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { globalDataService, personalityService } from './ApiService';
 
 const AppContext = createContext();
+const db = getFirestore();
 
 export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [clientId, setClientId] = useState(null);
+    const [license, setLicense] = useState(null);
     const [globalData, setGlobalData] = useState({
         coins: 0,
         trophies: 0,
@@ -20,13 +24,15 @@ export const AppProvider = ({ children }) => {
     const [personalityTraits, setPersonalityTraits] = useState([]);
     const [error, setError] = useState(null);
 
-    // Escuchar cambios en la autenticación
+    const auth = getAuth();
+
     useEffect(() => {
-        const auth = getAuth();
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!currentUser) {
                 setUser(null);
+                setIsAuthenticated(false);
                 setClientId(null);
+                setLicense(null);
                 setGlobalData({
                     coins: 0,
                     trophies: 0,
@@ -39,39 +45,47 @@ export const AppProvider = ({ children }) => {
                 setLoading(false);
                 return;
             }
-    
+
             setUser(currentUser);
             setError(null);
-    
+
             try {
+                // Fetch license from Firestore
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (userDoc.exists()) {
+                    setLicense(userDoc.data().license);
+                } else {
+                    throw new Error('User document not found in Firestore');
+                }
+
                 if (!clientId) {
                     const fetchedClientId = await globalDataService.getUserData(currentUser.uid, setClientId);
                     setGlobalData(fetchedClientId);
                 }
-    
+
                 if (clientId && personalityTraits.length === 0) {
                     const traits = await personalityService.getPersonalityTraits(clientId);
                     setPersonalityTraits(traits);
                 }
+
+                setIsAuthenticated(true);
             } catch (err) {
                 if (err.message === 'CLIENT_NOT_FOUND') {
-                    // El usuario está autenticado en Firebase pero no registrado en MySQL
                     setError("Usuario no registrado en el servidor. Por favor, regístrate nuevamente.");
-                    // Opcional: cerrar sesión automáticamente
-                    auth.signOut();
+                    await signOut(auth);
+                    setIsAuthenticated(false);
                     return;
                 }
                 console.error("Error loading user data:", err);
                 setError("No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo.");
             }
-    
+
             setLoading(false);
         });
-    
+
         return () => unsubscribe();
     }, [clientId]);
 
-    // Disminuir gamePercentage con el tiempo y actualizar en la base de datos
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -89,7 +103,6 @@ export const AppProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [user, clientId]);
 
-    // Disminuir foodPercentage con el tiempo
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -107,7 +120,6 @@ export const AppProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [user, clientId]);
 
-    // Disminuir sleepPercentage con el tiempo
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -125,7 +137,6 @@ export const AppProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [user, clientId]);
 
-    // Método para disminuir foodPercentage cuando el usuario juega
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
 
@@ -143,7 +154,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Método para actualizar gamePercentage
     const incrementGamePercentage = async (amount) => {
         if (!user || !clientId) return;
 
@@ -160,7 +170,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Método para actualizar foodPercentage en la base de datos
     const updateFoodPercentage = async (amount) => {
         if (!user || !clientId) return;
 
@@ -177,7 +186,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Método para actualizar sleepPercentage en la base de datos
     const updateSleepPercentage = async (amount) => {
         if (!user || !clientId) return;
 
@@ -194,7 +202,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Métodos existentes para monedas y trofeos
     const updateCoins = async (amount) => {
         if (!user || !clientId) return;
 
@@ -245,12 +252,15 @@ export const AppProvider = ({ children }) => {
     const value = {
         user,
         loading,
+        isAuthenticated,
         clientId,
         setClientId,
+        license,
+        setLicense,
         globalData,
-        setGlobalData, 
+        setGlobalData,
         personalityTraits,
-        setPersonalityTraits, 
+        setPersonalityTraits,
         updateCoins,
         updateTrophies,
         refreshUserData,

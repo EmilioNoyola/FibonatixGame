@@ -61,6 +61,8 @@ import Settings from '../Options/Settings';
 import ParentalControl from '../Options/ParentalControl';
 import SupportAndHelp from '../Options/SupportAndHelp';
 
+import AdminScreen from '../Admin/AdminScreen';
+
 const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -294,9 +296,19 @@ const AppStack = () => (
     </Stack.Navigator>
 );
 
+const AdminStack = () => (
+    <Stack.Navigator
+        screenOptions={{
+            headerShown: false,
+        }}
+    >
+        <Stack.Screen name="AdminScreen" component={AdminScreen} />
+    </Stack.Navigator>
+);
+
 // Función para exportar la navegación como componente.
 export default function Navigation() {
-    const { user, loading: isLoading } = useAppContext();
+    const { isAuthenticated, loading: isLoading, license } = useAppContext();
 
     if (isLoading) {
         return (
@@ -311,7 +323,11 @@ export default function Navigation() {
             <NavigationContainer
                 fallback={<LoadingScreen textoAdicional={''} />}
             >
-                {user ? <AppStack /> : <AuthStack />}
+                {isAuthenticated ? (
+                    license === 2 ? <AdminStack /> : <AppStack />
+                ) : (
+                    <AuthStack />
+                )}
             </NavigationContainer>
         </FocusProvider>
     );
