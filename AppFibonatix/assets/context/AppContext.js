@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import '../services/Credentials'; 
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { globalDataService, personalityService } from './ApiService';
+import { globalDataService, personalityService, connectWebSocket } from '../services/ApiService';
 
 const AppContext = createContext();
 const db = getFirestore();
@@ -45,109 +46,87 @@ export const AppProvider = ({ children }) => {
                 setLoading(false);
                 return;
             }
-
+    
             setUser(currentUser);
             setError(null);
-
+    
             try {
-                // Fetch license from Firestore
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 if (userDoc.exists()) {
                     setLicense(userDoc.data().license);
                 } else {
                     throw new Error('User document not found in Firestore');
                 }
-
-                if (!clientId) {
-                    const fetchedClientId = await globalDataService.getUserData(currentUser.uid, setClientId);
-                    setGlobalData(fetchedClientId);
+    
+                let fetchedClientId;
+                try {
+                    fetchedClientId = await globalDataService.getUserData(currentUser.uid, setClientId);
+                    setGlobalData(fetchedClientId || {
+                        coins: 0,
+                        trophies: 0,
+                        gamePercentage: 0,
+                        foodPercentage: 0,
+                        sleepPercentage: 0,
+                    });
+                } catch (error) {
+                    console.error('Error fetching global data:', error);
+                    setGlobalData({
+                        coins: 0,
+                        trophies: 0,
+                        gamePercentage: 0,
+                        foodPercentage: 0,
+                        sleepPercentage: 0,
+                    });
                 }
-
-                if (clientId && personalityTraits.length === 0) {
-                    const traits = await personalityService.getPersonalityTraits(clientId);
-                    setPersonalityTraits(traits);
+    
+                if (clientId || fetchedClientId) {
+                    try {
+                        const traits = await personalityService.getPersonalityTraits(clientId || fetchedClientId);
+                        setPersonalityTraits(traits || []);
+                    } catch (error) {
+                        console.error('Error fetching personality traits:', error);
+                        setPersonalityTraits([]);
+                    }
+                } else {
+                    setPersonalityTraits([]);
                 }
-
+    
                 setIsAuthenticated(true);
             } catch (err) {
-                if (err.message === 'CLIENT_NOT_FOUND') {
-                    setError("Usuario no registrado en el servidor. Por favor, regístrate nuevamente.");
-                    await signOut(auth);
-                    setIsAuthenticated(false);
-                    return;
-                }
                 console.error("Error loading user data:", err);
                 setError("No se pudieron cargar los datos del usuario. Por favor, intenta de nuevo.");
+                setIsAuthenticated(false);
+                await signOut(auth);
             }
-
+    
             setLoading(false);
         });
-
+    
         return () => unsubscribe();
     }, [clientId]);
 
     useEffect(() => {
         if (!user || !clientId) return;
 
-        const decreaseGamePercentage = async () => {
-            setGlobalData(prev => {
-                const newPercentage = Math.max((prev.gamePercentage || 0) - 3, 0);
-                if (newPercentage !== prev.gamePercentage) {
-                    incrementGamePercentage(newPercentage - prev.gamePercentage);
-                }
-                return { ...prev, gamePercentage: newPercentage };
-            });
+        const cleanupWebSocket = connectWebSocket(clientId, (data) => {
+            setGlobalData(data);
+        });
+
+        return () => {
+            cleanupWebSocket();
         };
-
-        const interval = setInterval(decreaseGamePercentage, 30000);
-        return () => clearInterval(interval);
-    }, [user, clientId]);
-
-    useEffect(() => {
-        if (!user || !clientId) return;
-
-        const decreaseFoodPercentage = async () => {
-            setGlobalData(prev => {
-                const newPercentage = Math.max((prev.foodPercentage || 0) - 2, 0);
-                if (newPercentage !== prev.foodPercentage) {
-                    updateFoodPercentage(newPercentage - prev.foodPercentage);
-                }
-                return { ...prev, foodPercentage: newPercentage };
-            });
-        };
-
-        const interval = setInterval(decreaseFoodPercentage, 30000);
-        return () => clearInterval(interval);
-    }, [user, clientId]);
-
-    useEffect(() => {
-        if (!user || !clientId) return;
-
-        const decreaseSleepPercentage = async () => {
-            setGlobalData(prev => {
-                const newPercentage = Math.max((prev.sleepPercentage || 0) - 3, 0);
-                if (newPercentage !== prev.sleepPercentage) {
-                    updateSleepPercentage(newPercentage - prev.sleepPercentage);
-                }
-                return { ...prev, sleepPercentage: newPercentage };
-            });
-        };
-
-        const interval = setInterval(decreaseSleepPercentage, 30000);
-        return () => clearInterval(interval);
     }, [user, clientId]);
 
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
 
         try {
-            setGlobalData(prev => {
-                const newPercentage = Math.max((prev.foodPercentage || 0) - 5, 0);
-                if (newPercentage !== prev.foodPercentage) {
-                    updateFoodPercentage(newPercentage - prev.foodPercentage);
-                }
-                return { ...prev, foodPercentage: newPercentage };
-            });
+            const amount = -5;
+            const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
+            setGlobalData(prev => ({
+                ...prev,
+                foodPercentage: updatedData.foodPercentage,
+            }));
         } catch (error) {
             console.error("Error decreasing food percentage on gameplay:", error);
             throw error;

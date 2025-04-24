@@ -55,7 +55,6 @@ export const LoginStyles = StyleSheet.create({
     inputContainer: {
       
         alignItems: 'center',
-        height: 210,
         marginTop: 100,
 
     },
@@ -88,12 +87,11 @@ export const LoginStyles = StyleSheet.create({
 
         width: 181,
         borderRadius: 25,
-        marginTop: 10,
-        paddingVertical: 5,
         textAlign: 'center',
         justifyContent: 'center',
         alignItems: 'center',
         alignSelf: 'flex-end',
+        height: 30,
   
     },    
       

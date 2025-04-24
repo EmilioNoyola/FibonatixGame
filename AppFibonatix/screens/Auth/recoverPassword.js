@@ -3,7 +3,7 @@ import { Text, TextInput, TouchableOpacity, View, ImageBackground, SafeAreaView,
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { recoverPasswordStyles } from "../../styles/UserAuthenticationStyles/recoverPasswordStyles";
 
-import useCustomFonts from '../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../assets/components/FontsConfigure';
 
 export default function RecoverPassword(props) {
 

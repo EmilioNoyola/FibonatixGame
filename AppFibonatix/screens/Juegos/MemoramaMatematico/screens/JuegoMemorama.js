@@ -16,7 +16,7 @@ import { JuegoMemoramaStyles } from '../styles/JuegoMemoramaStyles';
 import Card from '../Card';
 
 // Alertas Personalizadas
-import CustomAlert from '../../../../assets/apis/Alertas';
+import CustomAlert from '../../../../assets/components/CustomAlert';
 
 // Datos de las tarjetas para cada nivel
 const levelData = {

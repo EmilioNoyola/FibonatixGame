@@ -15,7 +15,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../assets/components/FontsConfigure';
 
 import { DeviceEventEmitter } from 'react-native'; // Importar DeviceEventEmitter
 

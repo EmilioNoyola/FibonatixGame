@@ -53,6 +53,7 @@
     "react-native-switch-toggle": "^2.2.1",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.19.10",
+    "socket.io-client": "^4.8.1",
     "tmpl": "^1.0.5",
     "typescript": "~5.3.3"
   },

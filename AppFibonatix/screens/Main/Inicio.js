@@ -5,7 +5,7 @@ import { Text, View, SafeAreaView, StatusBar, Pressable, Image} from 'react-nati
 import { InicioStyles } from "../../styles/InicioStyles";
 
 // Fuentes Personalizadas.
-import useCustomFonts from '../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../assets/components/FontsConfigure';
 
 export default function Inicio(props) {
 

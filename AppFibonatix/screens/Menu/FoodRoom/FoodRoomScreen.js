@@ -6,16 +6,16 @@ import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, ScrollView,
 import { useNavigation } from '@react-navigation/native';
 
 // Fuentes
-import useCustomFonts from '../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../../assets/components/FontsConfigure';
 
 // Íconos
 import { MaterialIcons } from '@expo/vector-icons'; 
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import FoodShop from './FoodShop';
-import InventaryList from './InventaryList';
+import FoodShop from './components/FoodShop';
+import InventaryList from './components/InventaryList';
 
-import { useAppContext } from '../../assets/db/AppContext';
+import { useAppContext } from '../../../assets/context/AppContext';
 
 export default function FoodRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();

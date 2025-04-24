@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Fontisto from '@expo/vector-icons/Fontisto';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../../../assets/components/FontsConfigure';
 
 // Importamos la configuración de niveles centralizada
 import levelsConfig from './LevelsConfig';

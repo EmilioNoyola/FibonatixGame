@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Fontisto from '@expo/vector-icons/Fontisto';
 
 // Fuentes personalizadas
-import useCustomFonts from '../../../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../../../assets/components/FontsConfigure';
 
 function Levels({ navigation, unlockedLevels = [], route }) {
   // Si las fuentes no están cargadas, se retorna null

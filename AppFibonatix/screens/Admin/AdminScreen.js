@@ -12,11 +12,11 @@ import {
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import axios from 'axios';
-import { useAppContext } from '../../assets/db/AppContext';
-import CustomAlert from '../../assets/apis/Alertas';
+import { useAppContext } from '../../assets/context/AppContext';
+import CustomAlert from '../../assets/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons'; 
 
-const API_BASE_URL = 'http://192.168.56.1:3000';
+const API_BASE_URL = 'http://192.168.56.1:3000'; // Usa http://localhost:3000 si pruebas en el navegador, o http://10.0.2.2:3000 para emulador Android
 const db = getFirestore();
 const auth = getAuth();
 
@@ -32,38 +32,38 @@ const AdminScreen = () => {
 
     const fetchData = async () => {
         try {
-        setLoading(true);
-        
-        // Fetch users
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const usersList = usersSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+            setLoading(true);
+            
+            // Fetch users
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            const usersList = usersSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
 
-        // Fetch activation codes
-        const codesSnapshot = await getDocs(collection(db, 'activationCodes'));
-        const codesList = codesSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+            // Fetch activation codes
+            const codesSnapshot = await getDocs(collection(db, 'activationCodes'));
+            const codesList = codesSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
 
-        // Combine users with their activation codes
-        const combinedList = usersList.map(user => {
-            const associatedCode = codesList.find(code => code.usedBy === user.id);
-            return {
-            ...user,
-            activationCode: associatedCode || null,
-            };
-        });
+            // Combine users with their activation codes
+            const combinedList = usersList.map(user => {
+                const associatedCode = codesList.find(code => code.usedBy === user.id);
+                return {
+                    ...user,
+                    activationCode: associatedCode || null,
+                };
+            });
 
-        setUsersWithCodes(combinedList);
+            setUsersWithCodes(combinedList);
         } catch (error) {
-        console.error('Error fetching data:', error);
-        showAlert('dataFetchError');
+            console.error('Error fetching data:', error);
+            showAlert('dataFetchError');
         } finally {
-        setLoading(false);
-        setRefreshing(false);
+            setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -76,24 +76,45 @@ const AdminScreen = () => {
         fetchData();
     };
 
-    const deleteUserAndCode = async (userId) => {
+    const getClientIdFromFirebaseId = async (firebaseId) => {
         try {
-        await axios.delete(`${API_BASE_URL}/firebase/deleteclient`, {
-            data: { client_ID: userId, current_admin_id: user.uid },
-        });
-        setUsersWithCodes(usersWithCodes.filter(item => item.id !== userId));
-        showAlert('deleteSuccess');
+            const response = await axios.post(`${API_BASE_URL}/api/getClientId`, {
+                client_fire_base_ID: firebaseId,
+            });
+            return response.data.client_ID;
         } catch (error) {
-        console.error('Error deleting user and code:', error);
-        const errorMessage = error.response?.data?.error || 'No se pudo eliminar el usuario.';
-        
-        if (errorMessage.includes('No puedes eliminarte a ti mismo')) {
-            showAlert('selfDeleteError');
-        } else if (errorMessage.includes('No puedes eliminar a otro administrador')) {
-            showAlert('adminDeleteError');
-        } else {
-            showAlert('deleteError');
+            console.error('Error fetching client_ID:', error);
+            throw new Error('No se pudo obtener el client_ID para este usuario.');
         }
+    };
+
+    const deleteUserAndCode = async (firebaseId) => {
+        try {
+            // Obtener el client_ID desde el firebaseId
+            const clientId = await getClientIdFromFirebaseId(firebaseId);
+
+            // Realizar la solicitud de eliminación
+            await axios.delete(`${API_BASE_URL}/api/deleteclient`, {
+                data: { 
+                    client_ID: firebaseId, // Enviar el firebaseId directamente, ya que deleteClient usa el ID de Firebase
+                    current_admin_id: user.uid, 
+                },
+            });
+
+            // Actualizar el estado local
+            setUsersWithCodes(usersWithCodes.filter(item => item.id !== firebaseId));
+            showAlert('deleteSuccess');
+        } catch (error) {
+            console.error('Error deleting user and code:', error);
+            const errorMessage = error.response?.data?.error || 'No se pudo eliminar el usuario.';
+            
+            if (errorMessage.includes('No puedes eliminarte a ti mismo')) {
+                showAlert('selfDeleteError');
+            } else if (errorMessage.includes('No puedes eliminar a otro administrador')) {
+                showAlert('adminDeleteError');
+            } else {
+                showAlert('deleteError');
+            }
         }
     };
 
@@ -104,28 +125,28 @@ const AdminScreen = () => {
 
     const handleDeleteConfirm = () => {
         if (alerts.userId) {
-        deleteUserAndCode(alerts.userId);
+            deleteUserAndCode(alerts.userId);
         }
         hideAlert();
     };
 
     const handleLogout = async () => {
         try {
-        await signOut(auth);
-        setTimeout(() => {
-            showAlert('logoutSuccess');
-        }, 500);
+            await signOut(auth);
+            setTimeout(() => {
+                showAlert('logoutSuccess');
+            }, 500);
         } catch (error) {
-        console.error('Error logging out:', error);
-        showAlert('logoutError');
+            console.error('Error logging out:', error);
+            showAlert('logoutError');
         }
     };
 
     const getUserRoleBadge = (userRole) => {
         if (userRole === 'admin') {
-        return <View style={[styles.badge, styles.adminBadge]}><Text style={styles.badgeText}>Admin</Text></View>;
+            return <View style={[styles.badge, styles.adminBadge]}><Text style={styles.badgeText}>Admin</Text></View>;
         } else {
-        return <View style={[styles.badge, styles.userBadge]}><Text style={styles.badgeText}>Usuario</Text></View>;
+            return <View style={[styles.badge, styles.userBadge]}><Text style={styles.badgeText}>Usuario</Text></View>;
         }
     };
 
@@ -133,157 +154,157 @@ const AdminScreen = () => {
         let badgeStyle = styles.freeBadge;
         
         if (license === 'premium') {
-        badgeStyle = styles.premiumBadge;
+            badgeStyle = styles.premiumBadge;
         } else if (license === 'pro') {
-        badgeStyle = styles.proBadge;
+            badgeStyle = styles.proBadge;
         }
         
         return (
-        <View style={[styles.badge, badgeStyle]}>
-            <Text style={styles.badgeText}>{license}</Text>
-        </View>
+            <View style={[styles.badge, badgeStyle]}>
+                <Text style={styles.badgeText}>{license}</Text>
+            </View>
         );
     };
 
     const renderUserItem = ({ item }) => (
         <View style={styles.card}>
-        <View style={styles.cardHeader}>
-            <View style={styles.userInfoHeader}>
-            <Text style={styles.userName}>{item.username}</Text>
-            {getUserRoleBadge(item.role)}
-            {getLicenseBadge(item.license)}
-            </View>
-            <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => confirmDelete(item.id, item.email)}
-            >
-            <Ionicons name="trash-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-        </View>
-        
-        <View style={styles.cardDivider} />
-        
-        <View style={styles.cardBody}>
-            <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={18} color="#666" />
-            <Text style={styles.infoText}>{item.email}</Text>
+            <View style={styles.cardHeader}>
+                <View style={styles.userInfoHeader}>
+                    <Text style={styles.userName}>{item.username}</Text>
+                    {getUserRoleBadge(item.role)}
+                    {getLicenseBadge(item.license)}
+                </View>
+                <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => confirmDelete(item.id, item.email)}
+                >
+                    <Ionicons name="trash-outline" size={22} color="#fff" />
+                </TouchableOpacity>
             </View>
             
-            <View style={styles.infoRow}>
-            <Ionicons name="key-outline" size={18} color="#666" />
-            <Text style={styles.infoText}>
-                {item.activationCode 
-                ? item.activationCode.code 
-                : 'No asignado'}
-            </Text>
-            </View>
+            <View style={styles.cardDivider} />
             
-            {item.activationCode && (
-            <>
+            <View style={styles.cardBody}>
                 <View style={styles.infoRow}>
-                <Ionicons name="checkmark-circle-outline" size={18} color={item.activationCode.used ? "#22c55e" : "#666"} />
-                <Text style={styles.infoText}>
-                    Estado: {item.activationCode.used ? 'Activado' : 'No activado'}
-                </Text>
+                    <Ionicons name="mail-outline" size={18} color="#666" />
+                    <Text style={styles.infoText}>{item.email}</Text>
                 </View>
                 
-                {item.activationCode.used && item.activationCode.redeemedAt && (
                 <View style={styles.infoRow}>
-                    <Ionicons name="calendar-outline" size={18} color="#666" />
+                    <Ionicons name="key-outline" size={18} color="#666" />
                     <Text style={styles.infoText}>
-                    Activado el: {new Date(item.activationCode.redeemedAt).toLocaleString()}
+                        {item.activationCode 
+                            ? item.activationCode.code 
+                            : 'No asignado'}
                     </Text>
                 </View>
+                
+                {item.activationCode && (
+                    <>
+                        <View style={styles.infoRow}>
+                            <Ionicons name="checkmark-circle-outline" size={18} color={item.activationCode.used ? "#22c55e" : "#666"} />
+                            <Text style={styles.infoText}>
+                                Estado: {item.activationCode.used ? 'Activado' : 'No activado'}
+                            </Text>
+                        </View>
+                        
+                        {item.activationCode.used && item.activationCode.redeemedAt && (
+                            <View style={styles.infoRow}>
+                                <Ionicons name="calendar-outline" size={18} color="#666" />
+                                <Text style={styles.infoText}>
+                                    Activado el: {new Date(item.activationCode.redeemedAt).toLocaleString()}
+                                </Text>
+                            </View>
+                        )}
+                    </>
                 )}
-            </>
-            )}
-        </View>
+            </View>
         </View>
     );
 
     const getAlertTitle = (type) => {
         switch (type) {
-        case 'dataFetchError': return 'Error de Carga';
-        case 'deleteSuccess': return 'Eliminación Exitosa';
-        case 'selfDeleteError': return 'Acción No Permitida';
-        case 'adminDeleteError': return 'Acción No Permitida';
-        case 'deleteError': return 'Error de Eliminación';
-        case 'confirmDelete': return 'Confirmar Eliminación';
-        case 'logoutSuccess': return 'Cierre de Sesión Exitoso';
-        case 'logoutError': return 'Error al Cerrar Sesión';
-        default: return 'Alerta';
+            case 'dataFetchError': return 'Error de Carga';
+            case 'deleteSuccess': return 'Eliminación Exitosa';
+            case 'selfDeleteError': return 'Acción No Permitida';
+            case 'adminDeleteError': return 'Acción No Permitida';
+            case 'deleteError': return 'Error de Eliminación';
+            case 'confirmDelete': return 'Confirmar Eliminación';
+            case 'logoutSuccess': return 'Cierre de Sesión Exitoso';
+            case 'logoutError': return 'Error al Cerrar Sesión';
+            default: return 'Alerta';
         }
     };
 
     const getAlertMessage = (type, email) => {
         switch (type) {
-        case 'dataFetchError': return 'No se pudieron cargar los datos.';
-        case 'deleteSuccess': return 'Usuario y código de activación eliminados correctamente.';
-        case 'selfDeleteError': return 'No puedes eliminarte a ti mismo.';
-        case 'adminDeleteError': return 'No puedes eliminar a otro administrador.';
-        case 'deleteError': return 'No se pudo eliminar el usuario.';
-        case 'confirmDelete': return `¿Estás seguro de que deseas eliminar al usuario ${email} y su código de activación?`;
-        case 'logoutSuccess': return 'Has cerrado sesión correctamente.';
-        case 'logoutError': return 'No se pudo cerrar sesión.';
-        default: return '';
+            case 'dataFetchError': return 'No se pudieron cargar los datos.';
+            case 'deleteSuccess': return 'Usuario y código de activación eliminados correctamente.';
+            case 'selfDeleteError': return 'No puedes eliminarte a ti mismo.';
+            case 'adminDeleteError': return 'No puedes eliminar a otro administrador.';
+            case 'deleteError': return 'No se pudo eliminar el usuario.';
+            case 'confirmDelete': return `¿Estás seguro de que deseas eliminar al usuario ${email} y su código de activación?`;
+            case 'logoutSuccess': return 'Has cerrado sesión correctamente.';
+            case 'logoutError': return 'No se pudo cerrar sesión.';
+            default: return '';
         }
     };
 
     return (
         <SafeAreaView style={styles.safeArea}>
-        <StatusBar backgroundColor="#239790" barStyle="light-content" />
-        
-        <View style={styles.header}>
-            <Text style={styles.headerTitle}>Panel de Administración</Text>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-        </View>
-        
-        <View style={styles.container}>
-            <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Usuarios y Códigos</Text>
-            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-                <Ionicons name="refresh-outline" size={22} color="#239790" />
-            </TouchableOpacity>
+            <StatusBar backgroundColor="#239790" barStyle="light-content" />
+            
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Panel de Administración</Text>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <Ionicons name="log-out-outline" size={22} color="#fff" />
+                </TouchableOpacity>
             </View>
             
-            {loading && !refreshing ? (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#239790" />
-                <Text style={styles.loadingText}>Cargando usuarios...</Text>
-            </View>
-            ) : (
-            <FlatList
-                data={usersWithCodes}
-                renderItem={renderUserItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                    <Ionicons name="people-outline" size={60} color="#ccc" />
-                    <Text style={styles.emptyText}>No hay usuarios registrados</Text>
+            <View style={styles.container}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Usuarios y Códigos</Text>
+                    <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+                        <Ionicons name="refresh-outline" size={22} color="#239790" />
+                    </TouchableOpacity>
                 </View>
-                }
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-            />
-            )}
-        </View>
+                
+                {loading && !refreshing ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#239790" />
+                        <Text style={styles.loadingText}>Cargando usuarios...</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={usersWithCodes}
+                        renderItem={renderUserItem}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.list}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Ionicons name="people-outline" size={60} color="#ccc" />
+                                <Text style={styles.emptyText}>No hay usuarios registrados</Text>
+                            </View>
+                        }
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                    />
+                )}
+            </View>
 
-        {alerts.visible && (
-            <CustomAlert
-            showAlert={alerts.visible}
-            title={getAlertTitle(alerts.type)}
-            message={getAlertMessage(alerts.type, alerts.email)}
-            onConfirm={alerts.type === 'confirmDelete' ? handleDeleteConfirm : hideAlert}
-            confirmButtonColor={alerts.type === 'confirmDelete' ? '#ff4444' : '#0B5A39'}
-            confirmText={alerts.type === 'confirmDelete' ? 'Eliminar' : 'Aceptar'}
-            onCancel={alerts.type === 'confirmDelete' ? hideAlert : null}
-            cancelButtonColor={alerts.type === 'confirmDelete' ? '#239790' : null}
-            cancelText={alerts.type === 'confirmDelete' ? 'Cancelar' : null}
-            />
-        )}
+            {alerts.visible && (
+                <CustomAlert
+                    showAlert={alerts.visible}
+                    title={getAlertTitle(alerts.type)}
+                    message={getAlertMessage(alerts.type, alerts.email)}
+                    onConfirm={alerts.type === 'confirmDelete' ? handleDeleteConfirm : hideAlert}
+                    confirmButtonColor={alerts.type === 'confirmDelete' ? '#ff4444' : '#0B5A39'}
+                    confirmText={alerts.type === 'confirmDelete' ? 'Eliminar' : 'Aceptar'}
+                    onCancel={alerts.type === 'confirmDelete' ? hideAlert : null}
+                    cancelButtonColor={alerts.type === 'confirmDelete' ? '#239790' : null}
+                    cancelText={alerts.type === 'confirmDelete' ? 'Cancelar' : null}
+                />
+            )}
         </SafeAreaView>
     );
 };

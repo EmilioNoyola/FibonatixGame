@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { foods, levels } from "./levelData";
 
 // Importa las fuentes personalizadas
-import useCustomFonts from "../../../../assets/apis/FontsConfigure";
+import useCustomFonts from "../../../../assets/components/FontsConfigure";
 
 export default function LevelScreen({ route, navigation }) {
   const { levelId } = route.params;

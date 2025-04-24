@@ -6,20 +6,20 @@ import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Animated, B
 import { useNavigation } from '@react-navigation/native';
 
 // Fuentes
-import useCustomFonts from '../../assets/apis/FontsConfigure';
+import useCustomFonts from '../../../assets/components/FontsConfigure';
 
 // Íconos
 import { MaterialIcons } from '@expo/vector-icons';
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
-import { FocusOn, FocusOff } from '../../assets/img-svg';
+import { FocusOn, FocusOff } from '../../../assets/img-svg';
 
 // Componente de Misiones y Personalidad
-import MissionsScreen from './MissionsScreen';
+import MissionsScreen from './components/MissionsScreen';
 
 // Foco de sueño
-import { useFocus } from '../../assets/apis/FocusContext';
+import { useFocus } from '../../../assets/components/FocusContext';
 
-import { useAppContext } from '../../assets/db/AppContext';
+import { useAppContext } from '../../../assets/context/AppContext';
 
 export default function BeedRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();

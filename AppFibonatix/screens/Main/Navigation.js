@@ -31,21 +31,21 @@ import RecoverPassword from "../Auth/recoverPassword";
 import ChangePassword from "../Auth/changePassword";
 
 // Pantallas de Menú
-import HomeScreen from "../Menu/HomeScreen";
-import FoodRoomScreen from "../Menu/FoodRoomScreen";
-import BedroomScreen from "../Menu/BedroomScreen";
+import HomeScreen from "../Menu/Home/HomeScreen";
+import FoodRoomScreen from "../Menu/FoodRoom/FoodRoomScreen";
+import BedroomScreen from "../Menu/BedRoom/BedroomScreen";
 
 // Barra lateral
 import CustomDrawerContent from './CustomDrawerContent';
 
 // Pantalla de Carga
-import LoadingScreen from "../../assets/apis/LoadingScreen"; 
+import LoadingScreen from "../../assets/components/LoadingScreen"; 
 
 // Foco de Sueño
-import { FocusProvider } from '../../assets/apis/FocusContext'
-import { useFocus } from '../../assets/apis/FocusContext'
+import { FocusProvider } from '../../assets/components/FocusContext'
+import { useFocus } from '../../assets/components/FocusContext'
 
-import { useAppContext } from '../../assets/db/AppContext';
+import { useAppContext } from '../../assets/context/AppContext';
 
 import MemoramaMatematico from '../Juegos/MemoramaMatematico/App';
 import MultipliTortuga from '../Juegos/MultipliTortuga/App';
