@@ -59,9 +59,12 @@ export const AppProvider = ({ children }) => {
                 }
     
                 let fetchedClientId;
+                let userData;
                 try {
-                    fetchedClientId = await globalDataService.getUserData(currentUser.uid, setClientId);
-                    setGlobalData(fetchedClientId || {
+                    const result = await globalDataService.getUserData(currentUser.uid, setClientId);
+                    fetchedClientId = result.clientId; // Obtener el clientId
+                    userData = result.data; // Obtener los datos globales
+                    setGlobalData(userData || {
                         coins: 0,
                         trophies: 0,
                         gamePercentage: 0,
@@ -79,9 +82,9 @@ export const AppProvider = ({ children }) => {
                     });
                 }
     
-                if (clientId || fetchedClientId) {
+                if (fetchedClientId) {
                     try {
-                        const traits = await personalityService.getPersonalityTraits(clientId || fetchedClientId);
+                        const traits = await personalityService.getPersonalityTraits(fetchedClientId);
                         setPersonalityTraits(traits || []);
                     } catch (error) {
                         console.error('Error fetching personality traits:', error);
@@ -103,7 +106,7 @@ export const AppProvider = ({ children }) => {
         });
     
         return () => unsubscribe();
-    }, [clientId]);
+    }, []);
 
     useEffect(() => {
         if (!user || !clientId) return;
@@ -215,11 +218,11 @@ export const AppProvider = ({ children }) => {
 
     const refreshUserData = async () => {
         if (!user || !clientId) return;
-
+    
         try {
-            const userData = await globalDataService.getUserData(user.uid, setClientId);
+            const { clientId: fetchedClientId, data: userData } = await globalDataService.getUserData(user.uid, setClientId);
             setGlobalData(userData);
-            const traits = await personalityService.getPersonalityTraits(clientId);
+            const traits = await personalityService.getPersonalityTraits(fetchedClientId);
             setPersonalityTraits(traits);
             return userData;
         } catch (error) {

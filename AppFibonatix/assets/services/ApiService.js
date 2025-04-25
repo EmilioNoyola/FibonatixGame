@@ -42,6 +42,8 @@ const getClientId = async (uid, setClientId) => {
     const user = auth.currentUser || { uid };
     if (!user) throw new Error('Usuario no autenticado');
 
+    console.log('Obteniendo client_ID para UID:', user.uid); // Log del UID
+
     try {
         const response = await api.post('/api/getClientId', { client_fire_base_ID: user.uid });
         console.log('Respuesta de /api/getClientId:', response.data);
@@ -49,6 +51,7 @@ const getClientId = async (uid, setClientId) => {
         return response.data.client_ID;
     } catch (error) {
         if (error.response && error.response.status === 404) {
+            console.error('Cliente no encontrado para UID:', user.uid);
             throw new Error('CLIENT_NOT_FOUND');
         }
         console.error('Error en getClientId:', error.response ? error.response.data : error.message);
@@ -61,7 +64,7 @@ export const globalDataService = {
         try {
             const client_ID = await getClientId(uid, setClientId);
             const response = await api.get(`/api/userData/${client_ID}`);
-            return response.data;
+            return { clientId: client_ID, data: response.data }; // Devolver clientId y datos
         } catch (error) {
             if (error.message === 'CLIENT_NOT_FOUND') {
                 throw error;
@@ -150,7 +153,9 @@ export const gameService = {
 export const personalityService = {
     getPersonalityTraits: async (clientId) => {
         try {
+            console.log('Solicitando rasgos de personalidad para clientId:', clientId); // Log del clientId
             const response = await api.get(`/api/users/${clientId}/personality`);
+            console.log('Respuesta de /api/users/.../personality:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error al obtener rasgos de personalidad:', error);

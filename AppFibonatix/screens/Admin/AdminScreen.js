@@ -16,7 +16,7 @@ import { useAppContext } from '../../assets/context/AppContext';
 import CustomAlert from '../../assets/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons'; 
 
-const API_BASE_URL = 'http://192.168.56.1:3000'; // Usa http://localhost:3000 si pruebas en el navegador, o http://10.0.2.2:3000 para emulador Android
+const API_BASE_URL = 'http://192.168.56.1:3000'; 
 const db = getFirestore();
 const auth = getAuth();
 

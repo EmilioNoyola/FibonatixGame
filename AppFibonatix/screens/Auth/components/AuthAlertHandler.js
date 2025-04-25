@@ -12,6 +12,11 @@ const alertMessages = {
     invalidCode: { title: "Código de Activación Inválido", message: "El código de activación no es válido o ya ha sido usado." },
     serverRegisterError: { title: "Error del Servidor", message: "No se pudo completar el registro en el servidor. Intenta de nuevo." },
     dataFetchError: { title: "Error de Datos", message: "No se pudieron obtener los datos del usuario. Intenta de nuevo." },
+    userNotFound: { title: "Usuario Inexistente", message: "Por favor, ingresa un Usuario válido." },
+    wrongPassword: { title: "Contraseña Incorrecta", message: "Por favor, inténtalo de nuevo." },
+    loginError: { title: "Error de Inicio de Sesión", message: "Hubo un problema al iniciar sesión. Intenta de nuevo." },
+    loginSuccess: { title: "¡Bienvenido!", message: "Haz iniciado sesión correctamente." },
+    searchError: { title: "Error en la Búsqueda de Usuario", message: "Por favor, inténtalo de nuevo." },
 };
 
 const AuthAlertHandler = ({ alertType, visible, onConfirm, onCancel }) => {
