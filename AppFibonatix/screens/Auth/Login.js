@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ImageBackground, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Text, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Pressable, Animated, Easing, ImageBackground } from 'react-native';
 
 import useCustomFonts from '../../assets/components/FontsConfigure';
 import { userService, authService, getAuthErrorType } from '../../assets/services/FirebaseService';
@@ -28,6 +28,42 @@ export default function Login({ navigation }) {
     const [password, setPassword] = useState('');
     const [alerts, setAlerts] = useState({ type: null, visible: false });
     const [isLoading, setIsLoading] = useState(false);
+
+    const slideUp = useState(new Animated.Value(300))[0];
+    const inputFade1 = useState(new Animated.Value(0))[0];
+    const inputFade2 = useState(new Animated.Value(0))[0];
+    const registerFade = useState(new Animated.Value(0))[0];
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(slideUp, {
+                toValue: 0,
+                duration: 800,
+                easing: Easing.out(Easing.exp),
+                useNativeDriver: true,
+            }),
+            Animated.sequence([
+                Animated.timing(inputFade1, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(inputFade2, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 100,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.timing(registerFade, {
+                toValue: 1,
+                duration: 400,
+                delay: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     const showAlert = (type) => setAlerts({ type, visible: true });
     const hideAlert = () => setAlerts({ ...alerts, visible: false });
@@ -71,75 +107,79 @@ export default function Login({ navigation }) {
 
     return (
         <SafeAreaView style={LoginStyles.main} onLayout={onLayoutRootView}>
-            <StatusBar
-                barStyle="light-content"
-                translucent={true}
-                backgroundColor="transparent"
-            />
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            
+            <ImageBackground
+                source={require('../../assets/img/tortugas_background.jpg')}
+                style={LoginStyles.backgroundImage}
+                resizeMode="cover"
+            >
+                <View style={LoginStyles.backgroundOverlay} />
+                
+                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+                    <Animated.View style={[LoginStyles.cardContainer, { transform: [{ translateY: slideUp }] }]}>
+                        <Text style={LoginStyles.headerText}>Bienvenido</Text>
+                        <Text style={LoginStyles.subHeaderText}>Inicia sesión para continuar</Text>
 
-            <View style={LoginStyles.container}>
-                <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={LoginStyles.backgroundImage} />
-
-                <View style={LoginStyles.header}>
-                    <Text style={LoginStyles.headerText}>INICIO DE SESIÓN</Text>
-                </View>
-
-                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-                    <View style={LoginStyles.inputContainer}>
-                        <AuthInput
-                            placeholder="Nombre de Usuario"
-                            value={username}
-                            onChangeText={setUsername}
-                            autoComplete="username"
-                        />
-                        <View style={{ paddingTop: 35 }}>
-                            <AuthInput
-                                placeholder="Contraseña"
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry={secureTextEntry}
-                                onToggleSecureText={setSecureTextEntry}
-                                iconName={secureTextEntry ? "eye" : "eye-off"}
-                                autoComplete="password"
-                            />
-                            <PressableButton
+                        <View style={LoginStyles.inputContainer}>
+                            <Animated.View style={{ opacity: inputFade1 }}>
+                                <AuthInput
+                                    placeholder="Nombre de Usuario"
+                                    value={username}
+                                    onChangeText={setUsername}
+                                    autoComplete="username"
+                                />
+                            </Animated.View>
+                            <Animated.View style={{ opacity: inputFade2 }}>
+                                <AuthInput
+                                    placeholder="Contraseña"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={secureTextEntry}
+                                    onToggleSecureText={setSecureTextEntry}
+                                    iconName={secureTextEntry ? "eye" : "eye-off"}
+                                    autoComplete="password"
+                                />
+                            </Animated.View>
+                            <Pressable
                                 onPress={() => navigation.navigate('RecoverPassword')}
-                                text="¿Olvidaste tu contraseña?"
-                                style={LoginStyles.ButtonRecoverPasswordContainer}
-                                textStyle={LoginStyles.ButtonRecoverPassword}
-                                pressedColor="#a9f7a2d8"
-                                defaultColor="#A9F7A27A"
+                                style={LoginStyles.recoverPasswordContainer}
+                            >
+                                <Text style={LoginStyles.recoverPasswordText}>¿Olvidaste tu contraseña?</Text>
+                            </Pressable>
+                        </View>
+
+                        <View style={LoginStyles.buttonContainer}>
+                            <PressableButton
+                                onPress={iniciarSesion}
+                                disabled={isLoading}
+                                text="INICIAR SESIÓN"
                             />
                         </View>
-                    </View>
+
+                        <Animated.View style={{ opacity: registerFade }}>
+                            <Pressable onPress={() => navigation.navigate('Register')}>
+                                <Text style={LoginStyles.registerText}>
+                                    ¿No tienes cuenta? <Text style={LoginStyles.registerLink}>Regístrate</Text>
+                                </Text>
+                            </Pressable>
+                        </Animated.View>
+                    </Animated.View>
                 </ScrollView>
-
-                <View style={LoginStyles.footer}>
-                    <View style={LoginStyles.buttonContainer}>
-                        <PressableButton
-                            onPress={iniciarSesion}
-                            disabled={isLoading}
-                            text="INICIAR SESIÓN"
-                        />
+    
+                {isLoading && (
+                    <View style={LoginStyles.loadingOverlay}>
+                        <ActivityIndicator size="large" color="#fff" />
+                        <Text style={LoginStyles.loadingText}>Cargando...</Text>
                     </View>
-                    <Pressable onPress={() => navigation.navigate('Register')}>
-                        <Text style={LoginStyles.footerText}>¿No tienes cuenta? Regístrate</Text>
-                    </Pressable>
-                </View>
-            </View>
-
-            {isLoading && (
-                <View style={LoginStyles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#FFF" />
-                    <Text style={LoginStyles.loadingText}>Cargando...</Text>
-                </View>
-            )}
-
-            <AuthAlertHandler
-                alertType={alerts.type}
-                visible={alerts.visible}
-                onConfirm={hideAlert}
-            />
+                )}
+    
+                <AuthAlertHandler
+                    alertType={alerts.type}
+                    visible={alerts.visible}
+                    onConfirm={hideAlert}
+                />
+            </ImageBackground>
         </SafeAreaView>
     );
 }

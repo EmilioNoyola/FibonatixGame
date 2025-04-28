@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ImageBackground, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Modal, Text, Pressable } from 'react-native';
+import { View, ImageBackground, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Modal, Text, Pressable, Animated, Easing } from 'react-native';
 import { CameraView } from 'expo-camera';
 import { getAuth, signOut } from 'firebase/auth';
 import axios from 'axios';
@@ -13,7 +13,7 @@ import AuthInput from './components/AuthInput';
 import AuthAlertHandler from './components/AuthAlertHandler';
 import PressableButton from './components/PressableButton';
 
-const API_BASE_URL = 'http://192.168.56.1:3000'; // Ajustado para emulador Android
+const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/';
 
 export default function Register({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
@@ -32,6 +32,61 @@ export default function Register({ navigation }) {
     const [isLoading, setIsLoading] = useState(false);
 
     const auth = getAuth();
+
+    const slideUp = useState(new Animated.Value(300))[0];
+    const inputFade1 = useState(new Animated.Value(0))[0];
+    const inputFade2 = useState(new Animated.Value(0))[0];
+    const inputFade3 = useState(new Animated.Value(0))[0];
+    const inputFade4 = useState(new Animated.Value(0))[0];
+    const loginFade = useState(new Animated.Value(0))[0];
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(slideUp, {
+                toValue: 0,
+                duration: 800,
+                easing: Easing.out(Easing.exp),
+                useNativeDriver: true,
+            }),
+            Animated.sequence([
+                Animated.timing(inputFade1, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(inputFade2, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(inputFade3, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(inputFade4, {
+                    toValue: 1,
+                    duration: 400,
+                    delay: 100,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.timing(loginFade, {
+                toValue: 1,
+                duration: 400,
+                delay: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        (async () => {
+            const { status } = await CameraView.requestCameraPermissionsAsync();
+            setHasPermission(status === 'granted');
+        })();
+    }, []);
 
     const showAlert = (type) => setAlerts({ type, visible: true });
     const hideAlert = () => setAlerts({ ...alerts, visible: false });
@@ -99,13 +154,6 @@ export default function Register({ navigation }) {
         }
     };
 
-    useEffect(() => {
-        (async () => {
-            const { status } = await Camera.requestCameraPermissionsAsync();
-            setHasPermission(status === 'granted');
-        })();
-    }, []);
-
     const handleBarCodeScanned = ({ data }) => {
         setActivationCode(data);
         setModalVisible(false);
@@ -120,91 +168,103 @@ export default function Register({ navigation }) {
 
     return (
         <SafeAreaView style={RegisterStyles.main} onLayout={onLayoutRootView}>
-            <StatusBar
-                barStyle="light-content"
-                translucent={true}
-                backgroundColor="transparent"
-            />
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            
+            <ImageBackground
+                source={require('../../assets/img/tortugas_background.jpg')}
+                style={RegisterStyles.backgroundImage}
+                resizeMode="cover"
+            >
+                <View style={RegisterStyles.backgroundOverlay} />
+                
+                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+                    <Animated.View style={[RegisterStyles.cardContainer, { transform: [{ translateY: slideUp }] }]}>
+                        <Text style={RegisterStyles.headerText}>Regístrate</Text>
+                        <Text style={RegisterStyles.subHeaderText}>Crea una cuenta para comenzar</Text>
 
-            <View style={RegisterStyles.container}>
-                <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={RegisterStyles.backgroundImage} />
+                        <View style={RegisterStyles.inputContainer}>
+                            <Animated.View style={{ opacity: inputFade1 }}>
+                                <AuthInput
+                                    placeholder="Nombre de Usuario"
+                                    value={username}
+                                    onChangeText={setUsername}
+                                />
+                            </Animated.View>
+                            <Animated.View style={{ opacity: inputFade2 }}>
+                                <AuthInput
+                                    placeholder="Email"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                />
+                            </Animated.View>
+                            <Animated.View style={{ opacity: inputFade3 }}>
+                                <AuthInput
+                                    placeholder="Contraseña"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={secureTextEntry}
+                                    onToggleSecureText={setSecureTextEntry}
+                                    iconName={secureTextEntry ? "eye" : "eye-off"}
+                                />
+                            </Animated.View>
+                            <Animated.View style={{ opacity: inputFade4 }}>
+                                <AuthInput
+                                    placeholder="Código de Activación"
+                                    value={activationCode}
+                                    onChangeText={setActivationCode}
+                                    iconName="qrcode"
+                                    onIconPress={() => setModalVisible(true)}
+                                />
+                            </Animated.View>
+                        </View>
 
-                <View style={RegisterStyles.header}>
-                    <Text style={RegisterStyles.headerText}>REGISTRO</Text>
-                </View>
+                        <View style={RegisterStyles.buttonContainer}>
+                            <PressableButton
+                                onPress={registrar}
+                                disabled={isLoading}
+                                text="REGISTRARSE"
+                            />
+                        </View>
 
-                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-                    <View style={RegisterStyles.inputContainer}>
-                        <AuthInput
-                            placeholder="Nombre de Usuario"
-                            value={username}
-                            onChangeText={setUsername}
-                        />
-                        <AuthInput
-                            placeholder="Email"
-                            value={email}
-                            onChangeText={setEmail}
-                        />
-                        <AuthInput
-                            placeholder="Contraseña"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry={secureTextEntry}
-                            onToggleSecureText={setSecureTextEntry}
-                            iconName={secureTextEntry ? "eye" : "eye-off"}
-                        />
-                        <AuthInput
-                            placeholder="Código de Activación"
-                            value={activationCode}
-                            onChangeText={setActivationCode}
-                            iconName="qrcode"
-                            onIconPress={() => setModalVisible(true)}
-                        />
-                    </View>
+                        <Animated.View style={{ opacity: loginFade }}>
+                            <Pressable onPress={() => navigation.navigate('Login')}>
+                                <Text style={RegisterStyles.loginText}>
+                                    ¿Ya tienes cuenta? <Text style={RegisterStyles.loginLink}>Inicia Sesión</Text>
+                                </Text>
+                            </Pressable>
+                        </Animated.View>
+                    </Animated.View>
                 </ScrollView>
 
-                <View style={RegisterStyles.footer}>
-                    <View style={RegisterStyles.buttonContainer}>
-                        <PressableButton
-                            onPress={registrar}
-                            disabled={isLoading}
-                            text="REGISTRARSE"
-                        />
+                <Modal visible={isModalVisible} animationType="fade">
+                    <View style={RegisterStyles.modalContainer}>
+                        <Text style={RegisterStyles.modalTitle}>Escanea tu Código QR</Text>
+                        {hasPermission === null ? (
+                            <Text>Solicitando permisos...</Text>
+                        ) : hasPermission === false ? (
+                            <Text>No tienes acceso a la cámara.</Text>
+                        ) : (
+                            <CameraView style={RegisterStyles.camera} onBarcodeScanned={handleBarCodeScanned} />
+                        )}
+                        <Pressable style={RegisterStyles.modalCloseButton} onPress={() => setModalVisible(false)}>
+                            <Text style={RegisterStyles.modalCloseText}>Cerrar</Text>
+                        </Pressable>
                     </View>
-                    <Pressable onPress={() => navigation.navigate('Login')}>
-                        <Text style={RegisterStyles.footerText}>¿Ya tienes cuenta? Inicia Sesión</Text>
-                    </Pressable>
-                </View>
-            </View>
+                </Modal>
 
-            <Modal visible={isModalVisible} animationType="slide">
-                <View style={RegisterStyles.modalContainer}>
-                    <Text style={RegisterStyles.modalTitle}>Escanea tu Código QR</Text>
-                    {hasPermission === null ? (
-                        <Text>Solicitando permisos...</Text>
-                    ) : hasPermission === false ? (
-                        <Text>No tienes acceso a la cámara.</Text>
-                    ) : (
-                        <CameraView style={RegisterStyles.camera} onBarcodeScanned={handleBarCodeScanned} />
-                    )}
-                    <Pressable style={RegisterStyles.modalCloseButton} onPress={() => setModalVisible(false)}>
-                        <Text style={RegisterStyles.modalCloseText}>Cerrar</Text>
-                    </Pressable>
-                </View>
-            </Modal>
+                {isLoading && (
+                    <View style={RegisterStyles.loadingOverlay}>
+                        <ActivityIndicator size="large" color="#fff" />
+                        <Text style={RegisterStyles.loadingText}>Cargando...</Text>
+                    </View>
+                )}
 
-            {isLoading && (
-                <View style={RegisterStyles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#FFF" />
-                    <Text style={RegisterStyles.loadingText}>Cargando...</Text>
-                </View>
-            )}
-
-            <AuthAlertHandler
-                alertType={alerts.type}
-                visible={alerts.visible}
-                onConfirm={handleAlertConfirm}
-            />
+                <AuthAlertHandler
+                    alertType={alerts.type}
+                    visible={alerts.visible}
+                    onConfirm={handleAlertConfirm}
+                />
+            </ImageBackground>
         </SafeAreaView>
     );
 }

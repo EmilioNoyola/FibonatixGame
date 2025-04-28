@@ -1,5 +1,5 @@
-import '../services/Credentials'; // Importar Credentials para asegurar inicialización
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import '../services/Credentials';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { 
     getFirestore, 
     collection, 
@@ -26,6 +26,10 @@ export const authService = {
     
     getCurrentUser: () => {
         return auth.currentUser;
+    },
+    
+    resetPassword: (email) => {
+        return sendPasswordResetEmail(auth, email);
     }
 };
 
@@ -41,6 +45,7 @@ export const userService = {
             return null;
         } catch (error) {
             console.error("Error al buscar usuario:", error);
+            throw error;
         }
     },
     
@@ -52,6 +57,7 @@ export const userService = {
             return !querySnapshot.empty;
         } catch (error) {
             console.error("Error al verificar usuario:", error);
+            throw error;
         }
     },
     
@@ -61,6 +67,7 @@ export const userService = {
             return true;
         } catch (error) {
             console.error("Error al crear usuario:", error);
+            throw error;
         }
     }
 };
@@ -79,6 +86,7 @@ export const activationCodeService = {
             return querySnapshot.docs[0].ref;
         } catch (error) {
             console.error("Error al verificar código:", error);
+            throw error;
         }
     },
     
@@ -92,6 +100,7 @@ export const activationCodeService = {
             return true;
         } catch (error) {
             console.error("Error al marcar código como usado:", error);
+            throw error;
         }
     }
 };
@@ -100,13 +109,13 @@ export const registerWithCode = async (username, email, password, activationCode
     try {
         const codeDocRef = await activationCodeService.verifyCode(activationCode);
         if (!codeDocRef) {
-            console.log("Código de activación inválido");
+            throw new Error("Código de activación inválido");
         }
         
         return await runTransaction(db, async (transaction) => {
             const codeDoc = await transaction.get(codeDocRef);
             if (!codeDoc.exists() || codeDoc.data().used) {
-                console.log("Código inválido o ya utilizado");
+                throw new Error("Código inválido o ya utilizado");
             }
             
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -128,6 +137,7 @@ export const registerWithCode = async (username, email, password, activationCode
         });
     } catch (error) {
         console.error("Error en transacción de registro:", error);
+        throw error;
     }
 };
 

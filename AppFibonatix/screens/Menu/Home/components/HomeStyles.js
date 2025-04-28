@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
         fontFamily: 'Quicksand_SemiBold',
         marginLeft: 5,
     },
-    containerLevel: {
+    containerPlushieButton: {
         width: 50,
         height: 50,
         borderRadius: 25,
@@ -116,18 +116,13 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    level: {
+    plushieButton: {
         width: 43,
         height: 43,
         borderRadius: 21,
         backgroundColor: '#398F53',
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    textLevel: {
-        color: 'white',
-        fontSize: 20,
-        fontFamily: 'Quicksand_SemiBold',
     },
     containerVictorias: {
         justifyContent: 'center',

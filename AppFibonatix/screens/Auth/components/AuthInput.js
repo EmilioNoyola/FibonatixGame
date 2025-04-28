@@ -14,7 +14,7 @@ const AuthInput = ({
     editable = true,
 }) => {
     return (
-        <View style={{ position: 'relative' }}>
+        <View style={RegisterStyles.inputWrapper}>
             <TextInput
                 placeholder={placeholder}
                 value={value}
@@ -30,9 +30,8 @@ const AuthInput = ({
                 >
                     <Icon
                         name={iconName}
-                        size={38}
+                        size={24}
                         color="#0B5A39"
-                        style={RegisterStyles.eyeIconBelow}
                     />
                 </Pressable>
             )}

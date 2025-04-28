@@ -10,6 +10,7 @@ import { styles } from './components/HomeStyles';
 import Header from './components/Header';
 import UserInfo from './components/UserInfo';
 import GameCard from './components/GameCard';
+import PlushieModal from './components/PlushieModal';
 
 import { useNavigation } from '@react-navigation/native';
 
@@ -17,6 +18,7 @@ export default function HomeScreen() {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
     const { refreshUserData, globalData } = useAppContext();
     const [availableGames, setAvailableGames] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
     const navigation = useNavigation();
 
     useEffect(() => {
@@ -111,7 +113,7 @@ export default function HomeScreen() {
                 onMenuPress={() => navigation.openDrawer()}
                 gamePercentage={globalData.gamePercentage || 0}
             />
-            <UserInfo />
+            <UserInfo onOpenModal={() => setModalVisible(true)} />
 
             <View style={styles.scrollArea}>
                 <ScrollView
@@ -129,6 +131,11 @@ export default function HomeScreen() {
                     ))}
                 </ScrollView>
             </View>
+
+            <PlushieModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+            />
         </SafeAreaView>
     );
 }

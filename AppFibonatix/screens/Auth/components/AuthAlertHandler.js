@@ -17,6 +17,8 @@ const alertMessages = {
     loginError: { title: "Error de Inicio de Sesión", message: "Hubo un problema al iniciar sesión. Intenta de nuevo." },
     loginSuccess: { title: "¡Bienvenido!", message: "Haz iniciado sesión correctamente." },
     searchError: { title: "Error en la Búsqueda de Usuario", message: "Por favor, inténtalo de nuevo." },
+    resetError: { title: "Error al Enviar Correo", message: "Hubo un problema al enviar el correo. Intenta de nuevo." },
+    resetSuccess: { title: "Correo Enviado", message: "Se ha enviado un enlace de reestablecimiento a tu correo." },
 };
 
 const AuthAlertHandler = ({ alertType, visible, onConfirm, onCancel }) => {

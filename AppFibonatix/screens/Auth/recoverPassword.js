@@ -1,87 +1,146 @@
-import React from 'react'; 
-import { Text, TextInput, TouchableOpacity, View, ImageBackground, SafeAreaView, StatusBar, Pressable, ScrollView} from 'react-native';
-import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import { recoverPasswordStyles } from "../../styles/UserAuthenticationStyles/recoverPasswordStyles";
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Pressable, Animated, Easing, ImageBackground } from 'react-native';
 
 import useCustomFonts from '../../assets/components/FontsConfigure';
+import { authService, getAuthErrorType } from '../../assets/services/FirebaseService';
+import { RecoverPasswordStyles } from '../../styles/UserAuthenticationStyles/recoverPasswordStyles';
 
-export default function RecoverPassword(props) {
+import AuthInput from './components/AuthInput';
+import AuthAlertHandler from './components/AuthAlertHandler';
+import PressableButton from './components/PressableButton';
 
+const alertMessages = {
+    emptyFields: { title: "Campo vacío", message: "Por favor, ingresa tu correo electrónico." },
+    invalidEmail: { title: "Correo Electrónico Inválido", message: "Por favor, ingresa un correo válido." },
+    userNotFound: { title: "Usuario No Encontrado", message: "No existe una cuenta asociada a este correo." },
+    resetError: { title: "Error al Enviar Correo", message: "Hubo un problema al enviar el correo. Intenta de nuevo." },
+    resetSuccess: { title: "Correo Enviado", message: "Se ha enviado un enlace de reestablecimiento a tu correo." },
+};
+
+export default function RecoverPassword({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
 
-    // Si las fuentes no están cargadas, se retorna null
     if (!fontsLoaded) return null;
 
+    const [email, setEmail] = useState('');
+    const [alerts, setAlerts] = useState({ type: null, visible: false });
+    const [isLoading, setIsLoading] = useState(false);
+
+    const slideUp = useState(new Animated.Value(300))[0];
+    const inputFade1 = useState(new Animated.Value(0))[0];
+    const loginFade = useState(new Animated.Value(0))[0];
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(slideUp, {
+                toValue: 0,
+                duration: 800,
+                easing: Easing.out(Easing.exp),
+                useNativeDriver: true,
+            }),
+            Animated.timing(inputFade1, {
+                toValue: 1,
+                duration: 400,
+                delay: 200,
+                useNativeDriver: true,
+            }),
+            Animated.timing(loginFade, {
+                toValue: 1,
+                duration: 400,
+                delay: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
+
+    const showAlert = (type) => setAlerts({ type, visible: true });
+    const hideAlert = () => setAlerts({ ...alerts, visible: false });
+
+    const enviarCorreo = async () => {
+        try {
+            setIsLoading(true);
+
+            if (!email) {
+                setIsLoading(false);
+                return showAlert('emptyFields');
+            }
+
+            await authService.resetPassword(email);
+            setIsLoading(false);
+            showAlert('resetSuccess');
+        } catch (error) {
+            console.log("Error al enviar correo de reestablecimiento:", error.code, error.message);
+            setIsLoading(false);
+            const errorType = getAuthErrorType(error.code);
+            showAlert(errorType === 'unknown' ? 'resetError' : errorType);
+        }
+    };
+
+    const handleAlertConfirm = () => {
+        hideAlert();
+        if (alerts.type === 'resetSuccess') {
+            navigation.navigate('Login');
+        }
+    };
+
     return (
+        <SafeAreaView style={RecoverPasswordStyles.main} onLayout={onLayoutRootView}>
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            
+            <ImageBackground
+                source={require('../../assets/img/tortugas_background.jpg')}
+                style={RecoverPasswordStyles.backgroundImage}
+                resizeMode="cover"
+            >
+                <View style={RecoverPasswordStyles.backgroundOverlay} />
+                
+                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+                    <Animated.View style={[RecoverPasswordStyles.cardContainer, { transform: [{ translateY: slideUp }] }]}>
+                        <Text style={RecoverPasswordStyles.headerText}>Recuperar Contraseña</Text>
+                        <Text style={RecoverPasswordStyles.subHeaderText}>Ingresa tu correo para continuar</Text>
 
-        <SafeAreaView style= {recoverPasswordStyles.main} onLayout={onLayoutRootView}>
+                        <View style={RecoverPasswordStyles.inputContainer}>
+                            <Animated.View style={{ opacity: inputFade1 }}>
+                                <AuthInput
+                                    placeholder="Email"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    autoComplete="email"
+                                />
+                            </Animated.View>
+                        </View>
 
-            <StatusBar
-                barStyle="light-content"
-                translucent={true}
-                backgroundColor="transparent"
-            />
+                        <View style={RecoverPasswordStyles.buttonContainer}>
+                            <PressableButton
+                                onPress={enviarCorreo}
+                                disabled={isLoading}
+                                text="ENVIAR"
+                            />
+                        </View>
 
-            <View style={recoverPasswordStyles.container}>
-
-            <ImageBackground source={require('../../assets/img/tortugas_background.jpg')} style={recoverPasswordStyles.backgroundImage} />
-
-                <View style={recoverPasswordStyles.header}>
-                    <Text style={recoverPasswordStyles.headerText}>RECUPERAR CONTRASEÑA</Text>
-                </View>
-
-                <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-
-                    <View style={recoverPasswordStyles.inputContainer}>
-
-                        <TextInput
-                        placeholder="Email"
-                        style={recoverPasswordStyles.input}
-                        />
-                        
-                        <Pressable 
-                                
-                                style={({pressed}) => [
-                                    {
-                                        backgroundColor: pressed ? '#0e5c07f1' : '#0C5206',
-                                    },
-                                    recoverPasswordStyles.button,
-                                ]}
-                            
-                        >
-
-                            <Text style={recoverPasswordStyles.buttonText}>ENVIAR</Text>
-                            
-                        </Pressable>
-
-                    </View>
-
+                        <Animated.View style={{ opacity: loginFade }}>
+                            <Pressable onPress={() => navigation.navigate('Login')}>
+                                <Text style={RecoverPasswordStyles.loginText}>
+                                    ¿Ya tienes tu contraseña? <Text style={RecoverPasswordStyles.loginLink}>Inicia Sesión</Text>
+                                </Text>
+                            </Pressable>
+                        </Animated.View>
+                    </Animated.View>
                 </ScrollView>
-
-                <View style={recoverPasswordStyles.footer}>
-
-                    <View style={recoverPasswordStyles.buttonContainer}>
-
-                        <TextInput keyboardType='number-pad' placeholder='Código de Verificación' style={recoverPasswordStyles.InputButton} />
-
-                        <TouchableOpacity 
-                            style={recoverPasswordStyles.eyeIconContainer} 
-                            onPress={() => props.navigation.navigate('ChangePassword')}
-                        >
-
-                            <FontAwesome5 name="arrow-circle-right" size={45} color="#014756" />
-
-                        </TouchableOpacity>
-
+    
+                {isLoading && (
+                    <View style={RecoverPasswordStyles.loadingOverlay}>
+                        <ActivityIndicator size="large" color="#fff" />
+                        <Text style={RecoverPasswordStyles.loadingText}>Cargando...</Text>
                     </View>
-                    
-                    <Text style={recoverPasswordStyles.footerText}></Text>
-
-                </View>
-
-            </View>
-
+                )}
+    
+                <AuthAlertHandler
+                    alertType={alerts.type}
+                    visible={alerts.visible}
+                    onConfirm={handleAlertConfirm}
+                />
+            </ImageBackground>
         </SafeAreaView>
-
     );
 }

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuth } from "firebase/auth";
 import { io } from 'socket.io-client';
 
-const API_BASE_URL = 'http://192.168.56.1:3000';
+const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/';
 
 const api = axios.create({
     baseURL: API_BASE_URL,

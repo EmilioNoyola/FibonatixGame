@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useAppContext } from '../../../../assets/context/AppContext';
 import { styles } from './HomeStyles';
 
-const UserInfo = () => {
+const UserInfo = ({ onOpenModal }) => {
     const { globalData } = useAppContext();
 
     const calculateLevel = (trophies) => {
@@ -19,11 +20,11 @@ const UserInfo = () => {
                     <Text style={styles.textMonedas}>x{globalData.coins || 0}</Text>
                 </View>
 
-                <View style={styles.containerLevel}>
-                    <View style={styles.level}>
-                        <Text style={styles.textLevel}>{calculateLevel(globalData.trophies)}</Text>
+                <Pressable onPress={onOpenModal} style={styles.containerPlushieButton}>
+                    <View style={styles.plushieButton}>
+                        <MaterialIcons name="toys" size={24} color="white" />
                     </View>
-                </View>
+                </Pressable>
 
                 <View style={styles.containerVictorias}>
                     <View style={styles.victorias}>
