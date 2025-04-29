@@ -20,21 +20,35 @@
     "android": {
       "permissions": [
         "CAMERA",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/img/TortugaJuego.png",
         "backgroundColor": "#1f5100"
       },
       "package": "com.emiliong.AppFibonatix",
-      "newArchEnabled": true
+      "newArchEnabled": false
     },
     "web": {
       "favicon": "./assets/img/TortugaJuego.png"
     },
     "plugins": [
       "expo-font",
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      [
+        "with-rn-bluetooth-classic",
+        {
+          "peripheralUsageDescription": "Allow Shurtle to check bluetooth peripheral info",
+          "alwaysUsageDescription": "Allow Shurtle to always use bluetooth info",
+          "protocols": ["com.shurtle.p1"]
+        }
+      ]
     ],
     "extra": {
       "eas": {
