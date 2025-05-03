@@ -1,29 +1,20 @@
-// Componentes de React
 import React, { useState, useEffect, useRef } from 'react';  
-import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Animated, BackHandler } from 'react-native';
+import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Animated, BackHandler, ScrollView, RefreshControl } from 'react-native';
 
-// Navegación
 import { useNavigation } from '@react-navigation/native';
-
-// Fuentes
 import useCustomFonts from '../../../assets/components/FontsConfigure';
-
-// Íconos
 import { MaterialIcons } from '@expo/vector-icons';
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
 import { FocusOn, FocusOff } from '../../../assets/img-svg';
-
-// Componente de Misiones y Personalidad
 import MissionsScreen from './components/MissionsScreen';
-
-// Foco de sueño
 import { useFocus } from '../../../assets/components/FocusContext';
-
 import { useAppContext } from '../../../assets/context/AppContext';
+import AnimatedBar from '../../../assets/components/AnimatedBar';
 
 export default function BeedRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    const { globalData } = useAppContext(); // Añade esta línea para acceder a globalData
+    const { globalData, refreshUserData } = useAppContext();
+    const [refreshing, setRefreshing] = useState(false);
     if (!fontsLoaded) return null;
 
     const navigation = useNavigation();
@@ -80,66 +71,92 @@ export default function BeedRoomScreen(props) {
         return () => unsubscribe();
     }, [isFocusOn, navigation]);        
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refreshUserData();
+        } catch (error) {
+            console.error('Error al recargar datos globales:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.container} 
-                pointerEvents={!isFocusOn ? "none" : "auto"}
-            >
-                <StatusBar
-                    barStyle="dark-content"
-                    translucent={true}
-                    backgroundColor="transparent"
-                />
+                <View style={styles.container} pointerEvents={!isFocusOn ? "none" : "auto"}>
+                    <StatusBar
+                        barStyle="dark-content"
+                        translucent={true}
+                        backgroundColor="transparent"
+                    />
 
-                <View style={styles.header}>
-                    <View style={{ marginHorizontal: 10, marginTop: 30 }}>
-                        <View>
-                            <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
-                                <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
-                                    <MaterialIcons name="menu" size={30} color="white" />
-                                </Pressable>
+                    <View style={styles.header}>
+                        <View style={{ marginHorizontal: 10, marginTop: 30 }}>
+                            <ScrollView
+                                contentContainerStyle={{ flexGrow: 1 }}
+                                showsVerticalScrollIndicator={false}
+                                showsHorizontalScrollIndicator={false}
+                                refreshControl={
+                                    <RefreshControl
+                                        refreshing={refreshing}
+                                        onRefresh={onRefresh}
+                                        tintColor="#478CDB"
+                                        colors={['#478CDB']}
+                                    />
+                                }
+                                // Desactivamos el rebote en la parte superior para que se vea más natural
+                                bounces={true}
+                            >
+                                <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
+                                    <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
+                                        <MaterialIcons name="menu" size={30} color="white" />
+                                    </Pressable>
 
-                                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                                    <View style={styles.containerEmotion}>
-                                        <View style={styles.Emotion}>
-                                            <SimpleLineIcons name="energy" size={40} color="#15448e" />
+                                    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                                        <View style={styles.containerEmotion}>
+                                            <View style={styles.Emotion}>
+                                                <SimpleLineIcons name="energy" size={40} color="#15448e" />
+                                            </View>
                                         </View>
-                                    </View>
-                                    <View style={styles.containerBarEmotion}>
-                                        <View style={[styles.BarEmotion, { width: (globalData.sleepPercentage || 0) * 2.5 }]}></View>
+                                        <AnimatedBar
+                                            percentage={globalData.sleepPercentage || 0}
+                                            barStyle={styles.BarEmotion}
+                                            containerStyle={styles.containerBarEmotion}
+                                        />
                                     </View>
                                 </View>
+                            </ScrollView>
+
+                            <View style={{ marginTop: -5 }}>
+                                <Text style={styles.textHeader}>Dormitorio</Text>
                             </View>
                         </View>
+                    </View>
 
-                        <View style={{ marginTop: -5 }}>
-                            <Text style={styles.textHeader}>Dormitorio</Text>
+                    <View style={styles.containerSleep}>
+                        <View style={styles.containerFocus}>
+                            {isFocusOn && (
+                                <Pressable style={styles.Focus} onPress={toggleFocus}>
+                                    <FocusOn />
+                                </Pressable>
+                            )}
+                        </View>
+
+                        <View style={styles.containerMisions}>
+                            <MissionsScreen />
                         </View>
                     </View>
                 </View>
 
-                <View style={styles.containerSleep}>
-                    <View style={styles.containerFocus}>
-                        { isFocusOn && (
-                            <Pressable style={styles.Focus} onPress={toggleFocus}>
-                                <FocusOn />
-                            </Pressable>
-                        )}
-                    </View>
-
-                    <View style={styles.containerMisions}>
-                        <MissionsScreen />
-                    </View>
-                </View>
-            </View>
-
-            {showOverlay && (
-                <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-                    <Pressable style={styles.Focus2} onPress={toggleFocus} pointerEvents="auto">
-                        <FocusOff />
-                    </Pressable>
-                </Animated.View>
-            )}
+                {showOverlay && (
+                    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+                        <Pressable style={styles.Focus2} onPress={toggleFocus} pointerEvents="auto">
+                            <FocusOff />
+                        </Pressable>
+                    </Animated.View>
+                )}
+            
         </SafeAreaView>
     );
 }
@@ -198,18 +215,19 @@ const styles = StyleSheet.create({
         width: 250,
         height: 35,
         justifyContent: 'center',
-        alignItems: 'right',
+        alignItems: 'flex-start',
         marginLeft: -10,
+        overflow: 'hidden',
     },
     BarEmotion: {
         backgroundColor: '#04a2e1',
         borderTopRightRadius: 60,
         borderBottomRightRadius: 60,
-        width: 80,
         height: 25,
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: -10,
+        position: 'relative',
     },
     containerSleep: {
         backgroundColor: '#7cc7fd',

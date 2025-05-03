@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StatusBar, View } from 'react-native';
+import { SafeAreaView, StatusBar, View, RefreshControl } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import useCustomFonts from '../../../assets/components/FontsConfigure';
@@ -19,6 +19,7 @@ export default function HomeScreen() {
     const { refreshUserData, globalData } = useAppContext();
     const [availableGames, setAvailableGames] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const navigation = useNavigation();
 
     useEffect(() => {
@@ -35,68 +36,79 @@ export default function HomeScreen() {
         refreshUserData();
     }, []);
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refreshUserData(); // Recargar datos globales
+        } catch (error) {
+            console.error('Error al recargar datos globales:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const games = availableGames.length > 0
         ? availableGames.map(game => ({
-                id: game.game_ID,
-                title: game.game_name,
-                imageUrl: game.imageUrl || 'https://via.placeholder.com/300x200',
-                navigateTo: game.screen_name || 'Game',
-            }))
+            id: game.game_ID,
+            title: game.game_name,
+            imageUrl: game.imageUrl || 'https://via.placeholder.com/300x200',
+            navigateTo: game.screen_name || 'Game',
+        }))
         : [
-                {
-                    id: 1,
-                    title: 'Memorama Matemático',
-                    imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/MemoramaMatematico.webp',
-                    navigateTo: 'MemoramaMatematico',
-                },
-                {
-                    id: 2,
-                    title: 'Reflejos Matemáticos',
-                    imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/MutipliTortuga.webp',
-                    navigateTo: 'MultipliTortuga',
-                },
-                {
-                    id: 3,
-                    title: 'DibujiTortuga',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'DibujiTortuga',
-                },
-                {
-                    id: 4,
-                    title: 'Tortuga Alimenticia',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'Juego4',
-                },
-                {
-                    id: 5,
-                    title: 'RapiTortuga',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'Juego5',
-                },
-                {
-                    id: 6,
-                    title: 'Rompefracciones',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'Juego6',
-                },
-                {
-                    id: 7,
-                    title: 'Tortuga Alimenticia 2',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'Juego7',
-                },
-                {
-                    id: 8,
-                    title: 'Sopa de Tortuga',
-                    imageUrl: 'https://via.placeholder.com/300x200',
-                    navigateTo: 'Juego8',
-                },
-                {
-                    id: 9,
-                    title: 'Serpiente Matemática',
-                    imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/JuegoSerpiente.webp',
-                    navigateTo: 'TortugaMatematica',
-                },
+            {
+                id: 1,
+                title: 'Memorama Matemático',
+                imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/MemoramaMatematico.webp',
+                navigateTo: 'MemoramaMatematico',
+            },
+            {
+                id: 2,
+                title: 'Reflejos Matemáticos',
+                imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/MutipliTortuga.webp',
+                navigateTo: 'MultipliTortuga',
+            },
+            {
+                id: 3,
+                title: 'DibujiTortuga',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'DibujiTortuga',
+            },
+            {
+                id: 4,
+                title: 'Tortuga Alimenticia',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'Juego4',
+            },
+            {
+                id: 5,
+                title: 'RapiTortuga',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'Juego5',
+            },
+            {
+                id: 6,
+                title: 'Rompefracciones',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'Juego6',
+            },
+            {
+                id: 7,
+                title: 'Tortuga Alimenticia 2',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'Juego7',
+            },
+            {
+                id: 8,
+                title: 'Sopa de Tortuga',
+                imageUrl: 'https://via.placeholder.com/300x200',
+                navigateTo: 'Juego8',
+            },
+            {
+                id: 9,
+                title: 'Serpiente Matemática',
+                imageUrl: 'https://raw.githubusercontent.com/EmilioNoyola/EmilioNoyola.github.io/refs/heads/main/IMG/JuegoSerpiente.webp',
+                navigateTo: 'TortugaMatematica',
+            },
         ];
 
     if (!fontsLoaded) return null;
@@ -120,6 +132,14 @@ export default function HomeScreen() {
                     contentContainerStyle={styles.scrollContainer}
                     showsVerticalScrollIndicator={false}
                     showsHorizontalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#4EC160"
+                            colors={['#4EC160']}
+                        />
+                    }
                 >
                     {games.map(game => (
                         <GameCard

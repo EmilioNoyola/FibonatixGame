@@ -40,15 +40,8 @@ export const styles = StyleSheet.create({
         zIndex: 1,
     },
     emotion: {
-        backgroundColor: '#99fa9d',
-        borderRadius: 60,
         width: 50,
         height: 50,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 20,
-        zIndex: 1,
-        position: 'absolute',
     },
     containerBarEmotion: {
         backgroundColor: '#004A2B',
@@ -57,8 +50,9 @@ export const styles = StyleSheet.create({
         width: 250,
         height: 35,
         justifyContent: 'center',
-        alignItems: 'right',
+        alignItems: 'flex-start',
         marginLeft: -10,
+        overflow: 'hidden',
     },
     barEmotion: {
         backgroundColor: '#5BF586',
@@ -68,6 +62,7 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: -10,
+        position: 'relative',
     },
     containerInfo: {
         backgroundColor: '#A3E8AE',
@@ -150,7 +145,6 @@ export const styles = StyleSheet.create({
     scrollContainer: {
         marginTop: 20,
         paddingHorizontal: 10,
-        paddingBottom: 20,
     },
     card: {
         width: 360,

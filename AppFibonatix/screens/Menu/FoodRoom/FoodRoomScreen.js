@@ -1,77 +1,97 @@
-// Componentes utilizados de React Native.
-import React from 'react';  
-import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, ScrollView, Image } from 'react-native';
-
-// Navegación
+import React, { useState } from 'react';  
+import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
-// Fuentes
 import useCustomFonts from '../../../assets/components/FontsConfigure';
-
-// Íconos
 import { MaterialIcons } from '@expo/vector-icons'; 
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-
 import FoodShop from './components/FoodShop';
 import InventaryList from './components/InventaryList';
-
 import { useAppContext } from '../../../assets/context/AppContext';
+import AnimatedBar from '../../../assets/components/AnimatedBar';
 
 export default function FoodRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    const { globalData } = useAppContext(); // Añade esta línea para acceder a globalData
+    const { globalData, refreshUserData } = useAppContext();
+    const [refreshing, setRefreshing] = useState(false);
     if (!fontsLoaded) return null;
 
     const navigation = useNavigation();
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refreshUserData();
+        } catch (error) {
+            console.error('Error al recargar datos globales:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
-            <StatusBar
-                barStyle="dark-content"
-                translucent={true}
-                backgroundColor="transparent"
-            />
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#FFA851"
+                        colors={['#FFA851']}
+                    />
+                }
+            >
+                <StatusBar
+                    barStyle="dark-content"
+                    translucent={true}
+                    backgroundColor="transparent"
+                />
 
-            <View style={styles.header}>
-                <View style={{marginHorizontal: 10, marginTop: 30}}>
-                    <View>
-                        <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
-                            <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
-                                <MaterialIcons name="menu" size={30} color="white" />
-                            </Pressable>
+                <View style={styles.header}>
+                    <View style={{ marginHorizontal: 10, marginTop: 30 }}>
+                        <View>
+                            <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
+                                <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
+                                    <MaterialIcons name="menu" size={30} color="white" />
+                                </Pressable>
 
-                            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                                <View style={styles.containerEmotion}>
-                                    <View style={styles.Emotion}>
-                                        <MaterialCommunityIcons name="food-apple-outline" size={40} color="#6d3709" />
-                                    </View>   
-                                </View>
-                                <View style={styles.containerBarEmotion}>
-                                    <View style={[styles.BarEmotion, { width: (globalData.foodPercentage || 0) * 2.5 }]}></View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                                    <View style={styles.containerEmotion}>
+                                        <View style={styles.Emotion}>
+                                            <MaterialCommunityIcons name="food-apple-outline" size={40} color="#6d3709" />
+                                        </View>   
+                                    </View>
+                                    <AnimatedBar
+                                        percentage={globalData.foodPercentage || 0}
+                                        barStyle={styles.BarEmotion}
+                                        containerStyle={styles.containerBarEmotion}
+                                    />
                                 </View>
                             </View>
                         </View>
+
+                        <View style={{ marginTop: -5 }}>
+                            <Text style={styles.textHeader}>Comedor</Text>
+                        </View>
                     </View>
+                </View>
 
-                    <View style={{marginTop: -5}}>
-                        <Text style={styles.textHeader}>Comedor</Text>
+                <FoodShop />
+
+                <View style={styles.containerInventary}>
+                    <View style={styles.containerButtonAlimentar}>
+                        <Pressable style={styles.buttonAlimentar}>
+                            <Text style={styles.textButtonAlimentar}>Alimentar</Text>
+                        </Pressable>
+                    </View>
+                    <View style={styles.containerFood}>
+                        <InventaryList />
+                        <Text style={styles.textFood}>Almacén</Text>
                     </View>
                 </View>
-            </View>
-
-            <FoodShop />
-
-            <View style={styles.containerInventary}>
-                <View style={styles.containerButtonAlimentar}>
-                    <Pressable style={styles.buttonAlimentar}>
-                        <Text style={styles.textButtonAlimentar}>Alimentar</Text>
-                    </Pressable>
-                </View>
-                <View style={styles.containerFood}>
-                    <InventaryList />
-                    <Text style={styles.textFood}>Almacén</Text>
-                </View>
-            </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -130,27 +150,28 @@ const styles = StyleSheet.create({
         width: 250,
         height: 35,
         justifyContent: 'center',
-        alignItems: 'right',
+        alignItems: 'flex-start',
         marginLeft: -10,
+        overflow: 'hidden',
     },
     BarEmotion: {
-        backgroundColor: 'orange', //
+        backgroundColor: 'orange',
         borderTopRightRadius: 60,
         borderBottomRightRadius: 60,
-        width: 140,
         height: 25,
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: -10,
+        position: 'relative',
     },
     scrollArea: {
-        flex: 1, // Toma el espacio restante después del encabezado
-        marginTop: 20, // Opcional, para separación
+        flex: 1,
+        marginTop: 20,
         marginBottom: 40,
     },
     scrollContainer: {
         paddingHorizontal: 10,
-        paddingBottom: 20, // Espacio adicional al final
+        paddingBottom: 20,
     },
     Card: {
         width: 360,
@@ -158,8 +179,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#E26F02',
         borderRadius: 35,
         marginBottom: 40,
-        alignSelf: 'center', // Centrado horizontal
-        flexDirection: 'row', // Asegura que los elementos estén alineados horizontalmente
+        alignSelf: 'center',
+        flexDirection: 'row',
         padding: 10,
     },
     containerImage: {
@@ -169,7 +190,7 @@ const styles = StyleSheet.create({
         width: 196,
         height: 138,
         borderRadius: 30,
-        marginRight: 20, // Espacio entre la imagen y el texto
+        marginRight: 20,
     },
     image: {
         width: '100%',
@@ -178,14 +199,14 @@ const styles = StyleSheet.create({
     },
     textButtonContainer: {
         justifyContent: 'center',
-        alignItems: 'center', // Alinea el texto y el botón hacia la izquierda
-        flex: 1, // Toma el espacio restante
+        alignItems: 'center',
+        flex: 1,
     },
     cardText: {
         color: 'white',
         fontSize: 18,
         fontFamily: 'Quicksand',
-        textAlign: 'center', // Centra el texto
+        textAlign: 'center',
     },
     containerButton: {
         width: 80,
@@ -195,11 +216,11 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 7 },
-            shadowOpacity: 0.8,
-            shadowRadius: 4,
-            elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 7 },
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+        elevation: 5,
     },
     buttonText: {
         color: 'white',
@@ -236,7 +257,6 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
         borderRadius: 110,
     },
-
     containerInfo: {
         marginTop: '3%',
         width: '90%',
@@ -246,7 +266,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     info: {
         width: '95%',
         height: '80%',
@@ -256,7 +275,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     precio: {
         width: '30%',
         height: '50%',
@@ -265,7 +283,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    coin:{
+    coin: {
         width: 40,
         height: 40,
         backgroundColor: 'orange',
@@ -289,7 +307,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Quicksand',
         marginHorizontal: 10,
     },
-
     buttonComprar: {
         width: '30%',
         height: '50%',
@@ -303,7 +320,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontFamily: 'Quicksand_Medium',
     },
-
     containerInventary: {
         width: '100%',
         height: '25%',
@@ -324,11 +340,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         alignSelf: 'center',
         shadowColor: '#000',
-        shadowColor: '#000', // Color de la sombra
-        shadowOffset: { width: 0, height: 4 }, // Posición de la sombra (debajo del botón)
-        shadowOpacity: 0.8, // Opacidad de la sombra (muy opaca)
-        shadowRadius: 0, // Sin difuminación
-        elevation: 4, // Elevación para Android (opcional)
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.8,
+        shadowRadius: 0,
+        elevation: 4,
     },
     textButtonAlimentar: {
         color: 'white',
@@ -352,7 +367,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         width: 50,
         height: 50,
-
         bottom: 0,
     },
     textFood: {
