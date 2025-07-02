@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ImageBackground, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Modal, Text, Pressable, Animated, Easing } from 'react-native';
 import { CameraView } from 'expo-camera';
-import { getAuth, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import axios from 'axios';
 
 import useCustomFonts from '../../assets/components/FontsConfigure';
@@ -98,30 +98,56 @@ export default function Register({ navigation }) {
         }
 
         setIsLoading(true);
-        let userCredential;
         try {
             if (await userService.usernameExists(username)) {
                 setIsLoading(false);
                 return showAlert('usernameTaken');
             }
 
-            userCredential = await registerWithCode(username, email, password, activationCode);
-            const uid = userCredential.user.uid;
+            // Registrar en Firebase Authentication y esperar a que se complete.
+            const userCredential = await registerWithCode(username, email, password, activationCode);
+            let uid;
+            await new Promise((resolve) => {
+                const unsubscribe = onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        uid = user.uid;
+                        unsubscribe();
+                        resolve();
+                    }
+                });
+            });
+
+            if (!uid) throw new Error('No se pudo obtener el UID del usuario');
 
             let client_ID;
-            try {
-                const signupResponse = await axios.post(`${API_BASE_URL}/api/signup`, {
-                    client_fire_base_ID: uid,
-                    username_user: username,
-                    activation_code: activationCode,
-                });
-                client_ID = signupResponse.data.client_ID;
-                setClientId(client_ID);
-                console.log('Client ID obtenido:', client_ID);
-            } catch (signupError) {
-                await userCredential.user.delete();
-                throw new Error('Failed to register user in server');
+            let attempt = 0;
+            const maxAttempts = 3;
+
+            while (attempt < maxAttempts) {
+                try {
+                    const signupResponse = await axios.post(`${API_BASE_URL}api/signup`, {
+                        client_fire_base_ID: uid,
+                        username_user: username,
+                        activation_code: activationCode,
+                    }, { timeout: 5000 });
+                    console.log('Respuesta de /api/signup:', signupResponse.data);
+                    client_ID = signupResponse.data.client_ID;
+                    break;
+                } catch (signupError) {
+                    attempt++;
+                    console.error(`Intento ${attempt} - Detalles del error de /api/signup:`, signupError.response ? signupError.response.data : signupError.message);
+                    if (attempt === maxAttempts) throw signupError;
+                    await new Promise(resolve => setTimeout(resolve, 1000)); 
+                }
             }
+
+            if (!client_ID) {
+                client_ID = await getClientIdFromServer(uid);
+                if (!client_ID) throw new Error('Failed to register user in server');
+                console.log('Recuperado client_ID tras reintentos:', client_ID);
+            }
+
+            setClientId(client_ID);
 
             try {
                 const userDataResponse = await axios.get(`${API_BASE_URL}/api/userData/${client_ID}`);
@@ -134,7 +160,6 @@ export default function Register({ navigation }) {
                 showAlert('dataFetchError');
             }
 
-            await signOut(auth);
             setIsLoading(false);
             showAlert('registerSuccess');
         } catch (error) {
@@ -152,6 +177,26 @@ export default function Register({ navigation }) {
 
             showAlert(errorType);
         }
+    };
+
+    // Función auxiliar para obtener client_ID desde /api/getClientId
+    const getClientIdFromServer = async (uid) => {
+        let attempt = 0;
+        const maxAttempts = 3;
+
+        while (attempt < maxAttempts) {
+            try {
+                const response = await axios.post(`${API_BASE_URL}/api/getClientId`, { client_fire_base_ID: uid }, { timeout: 5000 });
+                console.log('Respuesta de /api/getClientId:', response.data);
+                return response.data.client_ID;
+            } catch (error) {
+                attempt++;
+                console.error(`Intento ${attempt} - Error al obtener client_ID:`, error.response ? error.response.data : error.message);
+                if (attempt === maxAttempts) return null;
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
+            }
+        }
+        return null;
     };
 
     const handleBarCodeScanned = ({ data }) => {

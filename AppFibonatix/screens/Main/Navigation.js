@@ -197,21 +197,8 @@ function MyTabs() {
         <Tab.Navigator 
             tabBar={props => <AnimatedTabBar {...props} />}
             screenOptions={{ headerShown: false }}
+            initialRouteName='HomeScreen'
         >
-            <Tab.Screen 
-                name="HomeScreen" 
-                component={HomeScreen}   
-                options={{ 
-                    tabBarIcon: ({ ref }) => (
-                        <Lottie 
-                            ref={ref} 
-                            source={require('../../assets/lottie/House2.json')} 
-                            loop={false} 
-                            style={styles.icon} 
-                        />
-                    ),                    
-                }}       
-            />
             <Tab.Screen  
                 name="FoodRoomScreen" 
                 component={FoodRoomScreen}
@@ -219,12 +206,26 @@ function MyTabs() {
                     tabBarIcon: ({ ref }) => (
                         <Lottie 
                             ref={ref} 
-                            source={require('../../assets/lottie/House2.json')} 
+                            source={require('../../assets/lottie/comedor2.json')} 
                             loop={false} 
                             style={styles.icon} 
                         />
                     ),                    
                 }}
+            />
+            <Tab.Screen 
+                name="HomeScreen" 
+                component={HomeScreen}   
+                options={{ 
+                    tabBarIcon: ({ ref }) => (
+                        <Lottie 
+                            ref={ref} 
+                            source={require('../../assets/lottie/games.json')} 
+                            loop={false} 
+                            style={styles.icon} 
+                        />
+                    ),                    
+                }}       
             />
             <Tab.Screen 
                 name="BedroomScreen" 
@@ -262,7 +263,7 @@ function MyDrawer() {
     );
 }
 
-// Separate the main app stack
+// Módulo Autenticación de Usuario
 const AuthStack = () => (
     <Stack.Navigator
         screenOptions={{ headerShown: false }}
@@ -274,7 +275,7 @@ const AuthStack = () => (
     </Stack.Navigator>
 );
 
-// Separate the main app stack
+// Módulo Centro de Actividades
 const AppStack = () => (
     <Stack.Navigator
         screenOptions={{
@@ -294,6 +295,7 @@ const AppStack = () => (
     </Stack.Navigator>
 );
 
+// Módulo de Administrador
 const AdminStack = () => (
     <Stack.Navigator
         screenOptions={{
@@ -304,7 +306,7 @@ const AdminStack = () => (
     </Stack.Navigator>
 );
 
-// Función para exportar la navegación como componente.
+// Navegación con Sesiones
 export default function Navigation() {
     const { isAuthenticated, loading: isLoading, license } = useAppContext();
 

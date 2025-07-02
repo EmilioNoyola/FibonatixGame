@@ -4,17 +4,20 @@
     "slug": "fibonatixgameapp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/img/LogoShurtle.png",
+    "icon": "./assets/img/logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/img/LogoShurtle.png",
+      "image": "./assets/img/logo_carga.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1f5100"
+      "backgroundColor": "#fffdf7"
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR."
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
+        "UIBackgroundModes": ["fetch"],
+        "NSBluetoothAlwaysUsageDescription": "Necesario para conectar con dispositivos Bluetooth.",
+        "NSLocationWhenInUseUsageDescription": "Necesario para escanear dispositivos Bluetooth."
       }
     },
     "android": {
@@ -26,17 +29,18 @@
         "BLUETOOTH_SCAN",
         "BLUETOOTH_CONNECT",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/img/TortugaJuego.png",
+        "foregroundImage": "./assets/img/logo.png",
         "backgroundColor": "#1f5100"
       },
       "package": "com.emiliong.AppFibonatix",
       "newArchEnabled": false
     },
     "web": {
-      "favicon": "./assets/img/TortugaJuego.png"
+      "favicon": "./assets/img/logo_carga.png"
     },
     "plugins": [
       "expo-font",
@@ -48,7 +52,8 @@
           "alwaysUsageDescription": "Allow Shurtle to always use bluetooth info",
           "protocols": ["com.shurtle.p1"]
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

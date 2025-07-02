@@ -9,19 +9,17 @@ import { getFirestore } from "firebase/firestore";
 import { doc, getDoc } from "firebase/firestore";
 
 // Íconos
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Importamos los íconos de MaterialIcons
+import Icon from 'react-native-vector-icons/MaterialIcons'; 
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Entypo from '@expo/vector-icons/Entypo';
 
-// Fuentes personalizadas
 import useCustomFonts from '../../assets/components/FontsConfigure';
 
-import { DeviceEventEmitter } from 'react-native'; // Importar DeviceEventEmitter
+import { DeviceEventEmitter } from 'react-native';
 
 export default function CustomDrawer(props) {
 
-    // Si las fuentes no están cargadas, se retorna null
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
     if (!fontsLoaded) return null;
 
@@ -50,7 +48,6 @@ export default function CustomDrawer(props) {
             getUserData();
         }
 
-        // Escuchar el evento cuando la imagen de perfil cambia
         const updateProfileImageListener = DeviceEventEmitter.addListener("profileImageUpdated", (newImage) => {
             setProfileImage(newImage);
         });
@@ -179,32 +176,32 @@ export default function CustomDrawer(props) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F4F5CB', // Color de fondo del contenedor
+        backgroundColor: '#F4F5CB', 
     },
     headerContent: {
-        backgroundColor: '#F4F5CB', // Color de fondo para no generar espaciado inesperado
-        alignItems: 'center', // Centrado de los elementos dentro del headerContent
+        backgroundColor: '#F4F5CB', 
+        alignItems: 'center', 
     },
     header: {
         width: '100%',
-        height: 140, // Fijamos la altura del header
+        height: 140, 
         backgroundColor: '#F4ED5E',
             borderBottomLeftRadius: 15,
             borderBottomRightRadius: 15,
     },
     circle: {
-        marginTop: -80, // Desplazamos el círculo hacia arriba para que quede entre el header y el fondo
-        width: 170,  // Aumentamos el tamaño del círculo
-        height: 170, // Aumentamos el tamaño del círculo
-        borderRadius: 110, // Hacemos que el View sea un círculo
-        backgroundColor: '#F4F5CB', // Fondo blanco
+        marginTop: -80, 
+        width: 170,  
+        height: 170, 
+        borderRadius: 110, 
+        backgroundColor: '#F4F5CB', 
         alignItems: 'center',
-        justifyContent: 'center', // Centra el ícono dentro del círculo
+        justifyContent: 'center', 
     },
     profileImage: {
         width: 160,
         height: 160,
-        borderRadius: 80, // Para que sea un círculo
+        borderRadius: 80, 
     },
     TextUser: {
         fontSize: 34,
@@ -232,11 +229,11 @@ const styles = StyleSheet.create({
         borderRadius: 20,
     },
     row: {
-        flexDirection: 'row', // Alinear elementos en fila
-        alignItems: 'center', // Centrar verticalmente
+        flexDirection: 'row', 
+        alignItems: 'center', 
     },       
     icon: {
-        marginRight: 10, // Espacio entre ícono y texto
+        marginRight: 10,
     },
     TextButton: {
         fontSize: 20,

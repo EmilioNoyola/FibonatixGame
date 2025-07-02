@@ -1,3 +1,4 @@
+// Componente para eliminar el progreso de los juegos.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Reinicia el progreso del primer juego

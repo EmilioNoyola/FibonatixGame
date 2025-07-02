@@ -1,3 +1,4 @@
+// Botón switch personalizable.
 import React from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 
@@ -9,8 +10,8 @@ const CustomSwitch = ({
     circleColor = "#EFFFF4", 
     size = 50
 }) => {
-  const circleSize = size * 0.4; // Tamaño proporcional del círculo
-  const translateX = size - circleSize - 4; // Alinea el círculo al borde del contenedor
+    const circleSize = size * 0.4; 
+    const translateX = size - circleSize - 4;
 
     return (
         <Pressable
@@ -20,7 +21,7 @@ const CustomSwitch = ({
             {
             backgroundColor: value ? onColor : offColor,
             width: size,
-            height: size * 0.5, // Mantiene proporción del contenedor
+            height: size * 0.5, 
             borderRadius: size * 0.25,
             },
         ]}
@@ -43,11 +44,11 @@ const CustomSwitch = ({
 
 const styles = StyleSheet.create({
     container: {
-        padding: 2, // Espaciado entre el círculo y el borde
+        padding: 2, 
         justifyContent: "center",
     },
     circle: {
-        elevation: 2, // Sombra para el círculo
+        elevation: 2, 
     },
 });
 

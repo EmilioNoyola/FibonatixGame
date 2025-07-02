@@ -1,9 +1,7 @@
-// Componentes de React
 import React from "react";
-import { StyleSheet, ScrollView } from "react-native";
-
-// Componente de Personalidad
+import { ScrollView } from "react-native";
 import PersonalityItem from "./PersonalityItem";
+import { styles } from "./BedroomStyles";
 
 const personalityData = [
     { id: 1, name: "Artístico", image: { uri: 'https://raw.githubusercontent.com/EmilioNoyola/FibonatixGame/refs/heads/main/IMG/Emociones/Artistico.png' }, progress: 87, color: "#E63946" },
@@ -23,11 +21,3 @@ export default function PersonalityGrid() {
         </ScrollView>
     );
 }
-
-const styles = StyleSheet.create({
-    grid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "space-around",
-    },
-});

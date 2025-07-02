@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { io } from 'socket.io-client';
 
 const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/';
+export const SOCKET_URL = 'wss://shurtleserver-production.up.railway.app/';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -11,7 +12,7 @@ const api = axios.create({
     },
 });
 
-const socket = io(API_BASE_URL, {
+const socket = io(SOCKET_URL, {
     autoConnect: false,
 });
 
@@ -42,7 +43,7 @@ const getClientId = async (uid, setClientId) => {
     const user = auth.currentUser || { uid };
     if (!user) throw new Error('Usuario no autenticado');
 
-    console.log('Obteniendo client_ID para UID:', user.uid); // Log del UID
+    console.log('Obteniendo client_ID para UID:', user.uid);
 
     try {
         const response = await api.post('/api/getClientId', { client_fire_base_ID: user.uid });
@@ -64,7 +65,7 @@ export const globalDataService = {
         try {
             const client_ID = await getClientId(uid, setClientId);
             const response = await api.get(`/api/userData/${client_ID}`);
-            return { clientId: client_ID, data: response.data }; // Devolver clientId y datos
+            return { clientId: client_ID, data: response.data };
         } catch (error) {
             if (error.message === 'CLIENT_NOT_FOUND') {
                 throw error;
@@ -139,6 +140,16 @@ export const gameService = {
             throw error;
         }
     },
+    getUnlockedLevels: async (clientId, gameId) => {
+        try {
+            const response = await api.post('/api/getGameProgress', { client_ID: clientId });
+            const gameProgress = response.data.find(game => game.game_ID === gameId);
+            return gameProgress ? (gameProgress.game_levels || 0) + 1 : 1;
+        } catch (error) {
+            console.error('Error al obtener niveles desbloqueados:', error);
+            throw error;
+        }
+    },
     updateGameProgress: async (gameData, clientId) => {
         try {
             const response = await api.post('/api/updateGameProgress', { client_ID: clientId, ...gameData });
@@ -153,7 +164,7 @@ export const gameService = {
 export const personalityService = {
     getPersonalityTraits: async (clientId) => {
         try {
-            console.log('Solicitando rasgos de personalidad para clientId:', clientId); // Log del clientId
+            console.log('Solicitando rasgos de personalidad para clientId:', clientId);
             const response = await api.get(`/api/users/${clientId}/personality`);
             console.log('Respuesta de /api/users/.../personality:', response.data);
             return response.data;
@@ -162,4 +173,29 @@ export const personalityService = {
             throw error;
         }
     },
+};
+
+export const updateGamePerformance = async (gameProgressId, correctAttempts, wrongAttempts, avgTime) => {
+    try {
+        const response = await api.post('/api/updateGamePerformance', {
+        game_progress_ID: gameProgressId,
+        correct_attempts: correctAttempts,
+        wrong_attempts: wrongAttempts,
+        avg_time_per_operation: avgTime,
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error updating game performance:', error);
+        throw error;
+    }
+};
+
+export const getGamePerformance = async (gameProgressId) => {
+    try {
+        const response = await api.get(`/api/getGamePerformance/${gameProgressId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching game performance:', error);
+        throw error;
+    }
 };

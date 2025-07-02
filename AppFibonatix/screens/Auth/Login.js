@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Pressable, Animated, Easing, ImageBackground } from 'react-native';
 
 import useCustomFonts from '../../assets/components/FontsConfigure';
-import { userService, authService, getAuthErrorType } from '../../assets/services/FirebaseService';
+import { authService, getAuthErrorType } from '../../assets/services/FirebaseService';
 import { LoginStyles } from '../../styles/UserAuthenticationStyles/LoginStyles';
+import { useAppContext } from '../../assets/context/AppContext';
 
 import AuthInput from './components/AuthInput';
 import AuthAlertHandler from './components/AuthAlertHandler';
@@ -11,20 +12,20 @@ import PressableButton from './components/PressableButton';
 
 const alertMessages = {
     emptyFields: { title: "Campos vacíos", message: "Por favor, completa todos los campos." },
-    userNotFound: { title: "Usuario Inexistente", message: "Por favor, ingresa un Usuario válido." },
+    userNotFound: { title: "Correo No Registrado", message: "Por favor, ingresa un correo válido." },
     wrongPassword: { title: "Contraseña Incorrecta", message: "Por favor, inténtalo de nuevo." },
     loginError: { title: "Error de Inicio de Sesión", message: "Hubo un problema al iniciar sesión. Intenta de nuevo." },
     loginSuccess: { title: "¡Bienvenido!", message: "Haz iniciado sesión correctamente." },
-    searchError: { title: "Error en la Búsqueda de Usuario", message: "Por favor, inténtalo de nuevo." },
 };
 
 export default function Login({ navigation }) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+    const { setIsAuthenticated, setLoading } = useAppContext();
 
     if (!fontsLoaded) return null;
 
     const [secureTextEntry, setSecureTextEntry] = useState(true);
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [alerts, setAlerts] = useState({ type: null, visible: false });
     const [isLoading, setIsLoading] = useState(false);
@@ -72,36 +73,33 @@ export default function Login({ navigation }) {
         try {
             setIsLoading(true);
 
-            if (!username || !password) {
+            if (!email || !password) {
                 setIsLoading(false);
                 return showAlert('emptyFields');
             }
 
-            const userData = await userService.findUserByUsername(username);
+            const userCredential = await authService.login(email, password);
+            console.log("Usuario autenticado:", userCredential.user);
 
-            if (!userData) {
+            setTimeout(() => {
                 setIsLoading(false);
-                return showAlert('userNotFound');
-            }
-
-            const email = userData.email;
-            console.log("Correo encontrado:", email);
-
-            try {
-                const userCredential = await authService.login(email, password);
-                setIsLoading(false);
-                console.log("Usuario autenticado:", userCredential.user);
                 showAlert('loginSuccess');
-            } catch (error) {
-                console.log("Error al iniciar sesión:", error.code, error.message);
-                setIsLoading(false);
-                const errorType = getAuthErrorType(error.code);
-                showAlert(errorType === 'unknown' ? 'loginError' : errorType);
-            }
+            }, 500);
         } catch (error) {
-            console.log("Error en la búsqueda del usuario:", error.message);
+            console.log("Error al iniciar sesión:", error.code, error.message);
             setIsLoading(false);
-            showAlert('searchError');
+            const errorType = getAuthErrorType(error.code);
+            showAlert(errorType === 'unknown' ? 'loginError' : errorType);
+        }
+    };
+
+    const handleAlertConfirm = () => {
+        hideAlert();
+        if (alerts.type === 'loginSuccess') {
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'Menu' }],
+            });
         }
     };
 
@@ -124,10 +122,10 @@ export default function Login({ navigation }) {
                         <View style={LoginStyles.inputContainer}>
                             <Animated.View style={{ opacity: inputFade1 }}>
                                 <AuthInput
-                                    placeholder="Nombre de Usuario"
-                                    value={username}
-                                    onChangeText={setUsername}
-                                    autoComplete="username"
+                                    placeholder="Correo Electrónico"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    autoComplete="email"
                                 />
                             </Animated.View>
                             <Animated.View style={{ opacity: inputFade2 }}>
@@ -177,7 +175,7 @@ export default function Login({ navigation }) {
                 <AuthAlertHandler
                     alertType={alerts.type}
                     visible={alerts.visible}
-                    onConfirm={hideAlert}
+                    onConfirm={handleAlertConfirm}
                 />
             </ImageBackground>
         </SafeAreaView>

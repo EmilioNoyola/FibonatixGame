@@ -1,6 +1,7 @@
+// Componente para manejar los campos del formulario de autenticación.
 import React from 'react';
-import { TextInput, View, Pressable } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { TextInput, View, Pressable } from 'react-native';
 import { RegisterStyles } from '../../../styles/UserAuthenticationStyles/RegisterStyles';
 
 const AuthInput = ({

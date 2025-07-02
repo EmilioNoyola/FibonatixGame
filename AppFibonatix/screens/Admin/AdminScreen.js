@@ -1,3 +1,5 @@
+import axios from 'axios';
+import CustomAlert from '../../assets/components/CustomAlert';
 import React, { useState, useEffect } from 'react';
 import { 
     View, 
@@ -11,12 +13,10 @@ import {
 } from 'react-native';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
-import axios from 'axios';
 import { useAppContext } from '../../assets/context/AppContext';
-import CustomAlert from '../../assets/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons'; 
 
-const API_BASE_URL = 'http://192.168.56.1:3000'; 
+const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/'; 
 const db = getFirestore();
 const auth = getAuth();
 
@@ -34,21 +34,18 @@ const AdminScreen = () => {
         try {
             setLoading(true);
             
-            // Fetch users
             const usersSnapshot = await getDocs(collection(db, 'users'));
             const usersList = usersSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
             }));
 
-            // Fetch activation codes
             const codesSnapshot = await getDocs(collection(db, 'activationCodes'));
             const codesList = codesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
             }));
 
-            // Combine users with their activation codes
             const combinedList = usersList.map(user => {
                 const associatedCode = codesList.find(code => code.usedBy === user.id);
                 return {
@@ -90,18 +87,15 @@ const AdminScreen = () => {
 
     const deleteUserAndCode = async (firebaseId) => {
         try {
-            // Obtener el client_ID desde el firebaseId
             const clientId = await getClientIdFromFirebaseId(firebaseId);
 
-            // Realizar la solicitud de eliminación
             await axios.delete(`${API_BASE_URL}/api/deleteclient`, {
                 data: { 
-                    client_ID: firebaseId, // Enviar el firebaseId directamente, ya que deleteClient usa el ID de Firebase
+                    client_ID: firebaseId, 
                     current_admin_id: user.uid, 
                 },
             });
 
-            // Actualizar el estado local
             setUsersWithCodes(usersWithCodes.filter(item => item.id !== firebaseId));
             showAlert('deleteSuccess');
         } catch (error) {

@@ -1,19 +1,19 @@
-// Alertas Personalizadas
+// Componente de las Alertas Personalizadas
 import React from 'react';
 import AwesomeAlert from 'react-native-awesome-alerts';
 
   const CustomAlert = ({
     showAlert,
-    title, // Título de la alerta
-    message, // Mensaje de la alerta
-    confirmText, // Texto del botón confirm
-    cancelText, // Texto del botón cancel
-    onCancel,  // Función para cancelar
-    onConfirm, // Función para confirmar
+    title, 
+    message, 
+    confirmText, 
+    cancelText, 
+    onCancel, 
+    onConfirm, 
     closeOnTouchOutside, 
     closeOnHardwareBackPress,
-    confirmButtonColor, // Color del botón confirmar.
-    cancelButtonColor, // Color del botón cancelar.
+    confirmButtonColor, 
+    cancelButtonColor, 
   }) => {
     return (
       <AwesomeAlert
@@ -22,15 +22,15 @@ import AwesomeAlert from 'react-native-awesome-alerts';
         title={title}
         message={message}
         closeOnTouchOutside={!!closeOnTouchOutside}
-        closeOnHardwareBackPress={!!closeOnHardwareBackPress}  // Asegura que se puede cerrar con el botón de hardware
+        closeOnHardwareBackPress={!!closeOnHardwareBackPress}
         showConfirmButton={true}
-        showCancelButton={!!onCancel}  // Solo mostrar botón cancelar si la función existe
+        showCancelButton={!!onCancel}
         confirmText={confirmText}
         cancelText={cancelText}
         confirmButtonColor={confirmButtonColor}
         cancelButtonColor={cancelButtonColor}
         onConfirmPressed={onConfirm}
-        onCancelPressed={onCancel}  // Acción de cancelar
+        onCancelPressed={onCancel} 
       />
     );
   };

@@ -1,3 +1,4 @@
+// Funciones para la interacción con el arduino.
 export const plushieService = {
     toggleLEDs: async (writeToCharacteristic, isConnected, currentColorIndex) => {
         try {
@@ -5,9 +6,9 @@ export const plushieService = {
                 throw new Error('No está conectado al peluche');
             }
             const colors = [
-                { r: 1, g: 0, b: 0 }, // Rojo
-                { r: 0, g: 1, b: 0 }, // Verde
-                { r: 0, g: 0, b: 1 }, // Azul
+                { r: 1, g: 0, b: 0 }, 
+                { r: 0, g: 1, b: 0 }, 
+                { r: 0, g: 0, b: 1 }, 
             ];
             let nextIndex = currentColorIndex + 1;
             if (nextIndex > 3) nextIndex = 0;
@@ -45,14 +46,12 @@ export const plushieService = {
     monitorFSR: (writeToCharacteristic, subscribeToData, isConnected, onPressureDetected) => {
         let unsubscribe;
         let monitoringInterval = null;
+        let isAlertActive = false;
         let lastRequest = 0;
-        const requestDelay = 500; // 500ms entre peticiones para evitar saturación
+        const requestDelay = 500;
 
         const startMonitoring = async () => {
-            if (!isConnected) {
-                console.log('No se puede monitorear FSR: dispositivo no conectado');
-                return;
-            }
+            if (!isConnected || isAlertActive) return;
 
             try {
                 await writeToCharacteristic('FSR');
@@ -62,21 +61,19 @@ export const plushieService = {
 
             unsubscribe = subscribeToData(async (data) => {
                 if (data.includes('FSR:')) {
-                    console.log('Datos recibidos del FSR:', data);
                     const fsrPart = data.split('FSR:')[1];
                     if (fsrPart) {
                         const fsrValueStr = fsrPart.split(';')[0];
                         const fsrValue = parseInt(fsrValueStr, 10);
-                        if (!isNaN(fsrValue) && fsrValue > 0) {
+                        if (!isNaN(fsrValue)) {
                             onPressureDetected(fsrValue);
                         }
                     }
                 }
             });
 
-            // Programar solicitudes periódicas en lugar de inmediatas
             monitoringInterval = setInterval(async () => {
-                if (isConnected) {
+                if (isConnected && !isAlertActive) {
                     const now = Date.now();
                     if (now - lastRequest >= requestDelay) {
                         try {
@@ -90,19 +87,27 @@ export const plushieService = {
             }, requestDelay);
         };
 
-        startMonitoring();
-
-        return (newIsConnected) => {
-            if (newIsConnected !== undefined) {
-                isConnected = newIsConnected;
-            }
-            if (unsubscribe) {
-                unsubscribe();
-            }
+        const pauseMonitoring = () => {
+            isAlertActive = true;
             if (monitoringInterval) {
                 clearInterval(monitoringInterval);
-                monitoringInterval = null;
             }
+        };
+
+        const resumeMonitoring = () => {
+            isAlertActive = false;
+            startMonitoring();
+        };
+
+        startMonitoring();
+
+        return {
+            cleanup: () => {
+                if (unsubscribe) unsubscribe();
+                if (monitoringInterval) clearInterval(monitoringInterval);
+            },
+            pauseMonitoring,
+            resumeMonitoring
         };
     },
 
@@ -112,7 +117,7 @@ export const plushieService = {
         let lastRequest = 0;
         let prevAccX = 0, prevAccY = 0, prevAccZ = 0;
         const threshold = 0.2;
-        const requestDelay = 500; // 500ms entre peticiones para evitar saturación
+        const requestDelay = 500; 
 
         const startMonitoring = async () => {
             if (!isConnected) {
@@ -156,7 +161,6 @@ export const plushieService = {
                 }
             });
 
-            // Programar solicitudes periódicas en lugar de inmediatas
             monitoringInterval = setInterval(async () => {
                 if (isConnected) {
                     const now = Date.now();
@@ -186,5 +190,29 @@ export const plushieService = {
                 monitoringInterval = null;
             }
         };
+    },
+
+    selectGame: async (writeToCharacteristic, isConnected, gameId) => {
+        if (!isConnected || !gameId) return;
+        try {
+            await writeToCharacteristic(`GAME:${gameId}\n`);
+            console.log(`Comando enviado: GAME:${gameId}\n`);
+        } catch (error) {
+            console.error('Error al seleccionar juego:', error);
+        }
+    },
+
+    handleStatusAlert: async (writeToCharacteristic, isConnected, alert) => {
+        if (!isConnected) return;
+
+        try {
+            const alertType = alert.type.toUpperCase();
+            const alertLevel = alert.level.toUpperCase();
+            await writeToCharacteristic(`ALERT:${alertType}:${alertLevel}\n`);
+            console.log(`Alerta enviada al peluche: ${alertType} - ${alertLevel}`);
+        } catch (error) {
+            console.error('Error al enviar alerta al peluche:', error);
+            throw error;
+        }
     },
 };

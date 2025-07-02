@@ -1,3 +1,4 @@
+// Animación de las barras ( Entretenimiento, Alimentación y Sueño ).
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, View } from 'react-native';
 

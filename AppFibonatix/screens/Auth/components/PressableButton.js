@@ -1,3 +1,4 @@
+// Componente para manejar el botón de confirmación de autenticación.
 import React from 'react';
 import { Pressable, Text, Animated } from 'react-native';
 import { RegisterStyles } from '../../../styles/UserAuthenticationStyles/RegisterStyles';

@@ -1,29 +1,31 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { styles } from './HomeStyles';
 import AnimatedBar from '../../../../assets/components/AnimatedBar';
 
-// Importa las animaciones Lottie
-import happyFace from '../../../../assets/lottie/happy-face.json';
-import contentFace from '../../../../assets/lottie/content-face.json';
-import neutralFace from '../../../../assets/lottie/neutral-face.json';
-import sadFace from '../../../../assets/lottie/sad-face.json';
 
 const Header = ({ onMenuPress, gamePercentage }) => {
-    // Seleccionar la animación de la carita según el porcentaje
+
     const moodFace = useMemo(() => {
+        let imageUrl = '';
+
         if (gamePercentage >= 75) {
-        return <LottieView source={happyFace} autoPlay loop style={styles.emotion} />;
+            imageUrl = 'https://raw.githubusercontent.com/EmilioNoyola/FibonatixGame/refs/heads/main/IMG/Emociones/ShurteIconHappy.png';
+        } else if (gamePercentage >= 50) {
+            imageUrl = 'https://raw.githubusercontent.com/EmilioNoyola/FibonatixGame/refs/heads/main/IMG/Emociones/ShurtleIconMeh.png';
+        } else {
+            imageUrl = 'https://raw.githubusercontent.com/EmilioNoyola/FibonatixGame/refs/heads/main/IMG/Emociones/ShurtleIconMad.png';
         }
-        if (gamePercentage >= 50) {
-        return <LottieView source={contentFace} autoPlay loop style={styles.emotion} />;
-        }
-        if (gamePercentage >= 25) {
-        return <LottieView source={neutralFace} autoPlay loop style={styles.emotion} />;
-        }
-        return <LottieView source={sadFace} autoPlay loop style={styles.emotion} />;
+
+        return (
+            <Image
+                source={{ uri: imageUrl }}
+                style={styles.emotion}
+                resizeMode="contain"
+            />
+        );
     }, [gamePercentage]);
 
     return (

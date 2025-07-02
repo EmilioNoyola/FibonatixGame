@@ -26,7 +26,7 @@ export const RecoverPasswordStyles = StyleSheet.create({
         marginHorizontal: 20,
         borderRadius: 30,
         padding: 20,
-        height: width * 0.95, // Mismo alto que Login y Register
+        height: width * 0.95, 
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
@@ -45,11 +45,11 @@ export const RecoverPasswordStyles = StyleSheet.create({
         fontFamily: 'Quicksand_SemiBold',
         textAlign: 'center',
         color: '#0B5A39',
-        marginBottom: 30, // Aumentado para mejor espaciado, igual que en Login
+        marginBottom: 30,
     },
     inputContainer: {
-        gap: 15, // Igual que en Login para consistencia
-        marginBottom: 15, // Igual que en Login
+        gap: 15, 
+        marginBottom: 15,
     },
     inputWrapper: {
         position: 'relative',
@@ -76,7 +76,7 @@ export const RecoverPasswordStyles = StyleSheet.create({
         transform: [{ translateY: -12 }],
     },
     buttonContainer: {
-        marginBottom: 20, // Igual que en Login
+        marginBottom: 20,
         alignItems: 'center',
     },
     button: {

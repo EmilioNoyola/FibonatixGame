@@ -8,16 +8,16 @@ const Stack = createStackNavigator();
 export default function App() {
     return (
         <Stack.Navigator initialRouteName="Level">
-            <Stack.Screen
-                name="Level"
-                component={LevelScreen}
-                options={{ headerShown: false }}
-            />
-            <Stack.Screen
-                name="GameScreen"
-                component={GameScreen}
-                options={{ headerShown: false }}
-            />
+        <Stack.Screen
+            name="Level"
+            component={LevelScreen}
+            options={{ headerShown: false }}
+        />
+        <Stack.Screen
+            name="GameScreen"
+            component={GameScreen}
+            options={{ headerShown: false }}
+        />
         </Stack.Navigator>
     );
 }

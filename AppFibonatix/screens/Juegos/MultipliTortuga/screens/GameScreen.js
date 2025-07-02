@@ -1,63 +1,106 @@
-// Componentes y Hooks de React Native
-import React, { useState, useEffect } from 'react'; 
-import { View, Text, TouchableOpacity, StyleSheet, Pressable, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from "@react-navigation/native";
 import { BackHandler } from 'react-native';
-
-// Íconos
-import { Ionicons, MaterialIcons } from '@expo/vector-icons'; 
-
-// Alertas Personalizadas
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { RFPercentage } from 'react-native-responsive-fontsize';
 import CustomAlert from '../../../../assets/components/CustomAlert';
+import { useAppContext } from '../../../../assets/context/AppContext';
+import { gameService } from '../../../../assets/services/ApiService';
 
-function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
-  
+const { width } = Dimensions.get("window");
+const scale = width / 414;
+
+function GameScreen({ route, navigation }) {
   const { level } = route.params;
-  const [cards, setCards] = useState(generateCards(level)); 
-  const [placedCards, setPlacedCards] = useState(Array(10).fill(null)); 
-  const [initialPositions, setInitialPositions] = useState(Array(10).fill(null)); 
-  const [selectedCard, setSelectedCard] = useState(null); 
+  const { clientId, incrementGamePercentage, updateTrophies, updateCoins, decreaseFoodPercentageOnGamePlay, refreshUserData } = useAppContext();
 
-  const [timer, setTimer] = useState(0); // Para guardar el tiempo en segundos
-  const [isTimerRunning, setIsTimerRunning] = useState(false); // Para controlar si el temporizador está activo
-  const [bestTime, setBestTime] = useState(null); // Para guardar el mejor tiempo del nivel
-
-  // Objeto que contiene la navegación.
-  const navigation2 = useNavigation(); 
-
-  // Estados para controlar la visibilidad de las alertas
+  const [cards, setCards] = useState(generateCards(level));
+  const [placedCards, setPlacedCards] = useState(Array(10).fill(null));
+  const [initialPositions, setInitialPositions] = useState(Array(10).fill(null));
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [timer, setTimer] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [bestTime, setBestTime] = useState(null);
   const [alerts, setAlerts] = useState({ type: null, visible: false });
+  const [exitAttempt, setExitAttempt] = useState(false);
+  const [coinsEarned, setCoinsEarned] = useState(0);
+  const [isNewLevel, setIsNewLevel] = useState(false);
+  const [didWin, setDidWin] = useState(false);
+  const [unlockedLevels, setUnlockedLevels] = useState([1]);
+  const [previousGameProgress, setPreviousGameProgress] = useState(null);
+
+  const navigation2 = useNavigation();
+
   const showAlert = (type) => setAlerts({ type, visible: true });
   const hideAlert = () => setAlerts({ ...alerts, visible: false });
 
-  const [exitAttempt, setExitAttempt] = useState(false); // Nuevo estado para controlar intentos de salida
-
   useEffect(() => {
-      const checkFirstTimePlaying = async () => {
-          if (level === 1) {
-              const hasPlayed = await AsyncStorage.getItem('hasPlayedBefore');
-              if (!hasPlayed) {
-                  showAlert('startGame'); // Muestra la alerta
-                  await AsyncStorage.setItem('hasPlayedBefore', 'true'); // Marca que ya ha jugado
-              } else {
-                  setIsTimerRunning(true); // Inicia el temporizador si ya ha jugado antes
-              }
-          } else {
-              setIsTimerRunning(true); // Inicia el temporizador para niveles distintos del 1
-          }
-      };
-      checkFirstTimePlaying();
-  }, [level]);
+    const loadData = async () => {
+      try {
+        if (!clientId) {
+          console.warn("No clientId available, skipping data load.");
+          setUnlockedLevels([1]);
+          return;
+        }
 
-  // Generar cartas según el nivel
+        const levelsUnlocked = await gameService.getUnlockedLevels(clientId, 2);
+        const levelsArray = Array.from({ length: levelsUnlocked }, (_, i) => i + 1);
+        setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
+
+        const gameProgress = await gameService.getGameProgress(clientId);
+        const multipliProgress = gameProgress.find(game => game.game_ID === 2);
+        setPreviousGameProgress(multipliProgress);
+
+        const savedBestTime = await AsyncStorage.getItem(`bestTime_level_${level}`);
+        if (savedBestTime !== null) {
+          setBestTime(parseInt(savedBestTime));
+        }
+      } catch (error) {
+        console.error("Error al cargar datos:", error.message);
+        setUnlockedLevels([1]);
+      }
+    };
+    loadData();
+
+    const checkFirstTimePlaying = async () => {
+      if (level === 1) {
+        const hasPlayed = await AsyncStorage.getItem("hasPlayedMultipliBefore");
+        if (!hasPlayed) {
+          showAlert("startGame");
+        } else {
+          startGame();
+        }
+      } else {
+        startGame();
+      }
+    };
+    checkFirstTimePlaying();
+  }, [level, clientId]);
+
+  const startGame = async () => {
+    try {
+      if (!clientId) {
+        throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
+      }
+      await decreaseFoodPercentageOnGamePlay();
+      setIsTimerRunning(true);
+      if (level === 1) {
+        await AsyncStorage.setItem("hasPlayedMultipliBefore", "true");
+      }
+    } catch (error) {
+      console.error("Error al iniciar partida:", error.message);
+      showAlert("Error");
+    }
+  };
+
   function generateCards(level) {
     const numbers = Array.from({ length: 10 }, (_, i) => (i + 1) * level);
     return shuffle(numbers);
   }
 
-  // Mezclar las cartas
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -66,23 +109,25 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
     return array;
   }
 
-  // Reinicia el nivel
-  const reloadLevel = () => {
+  const resetGameState = () => {
     setCards(generateCards(level));
     setPlacedCards(Array(10).fill(null));
     setInitialPositions(Array(10).fill(null));
     setSelectedCard(null);
-    setTimer(0); // Reinicia el tiempo
-    setIsTimerRunning(false); // Detiene el temporizador
-    setTimeout(() => setIsTimerRunning(true), 100); // Reinicia el temporizador con un pequeño delay
-  };  
+    setTimer(0);
+    setIsTimerRunning(false);
+    setDidWin(false);
+  };
 
-  // Manejar selección de una carta
+  const reloadLevel = () => {
+    resetGameState();
+    setTimeout(() => setIsTimerRunning(true), 100);
+  };
+
   const handleCardSelect = (index) => {
     setSelectedCard({ type: 'available', index });
   };
 
-  // Manejar colocación o selección de una carta en un espacio
   const handlePlaceCard = (targetIndex) => {
     if (selectedCard) {
       const newPlacedCards = [...placedCards];
@@ -93,8 +138,6 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
         if (newPlacedCards[targetIndex] === null) {
           newPlacedCards[targetIndex] = cards[selectedCard.index];
           newCards[selectedCard.index] = null;
-
-          // Guardar la posición inicial de la carta
           newInitialPositions[targetIndex] = selectedCard.index;
         } else {
           showAlert('EspacioOcupado');
@@ -105,7 +148,6 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
         newPlacedCards[targetIndex] = newPlacedCards[sourceIndex];
         newPlacedCards[sourceIndex] = temp;
 
-        // Intercambiar las posiciones iniciales de las cartas
         const tempInitialPos = newInitialPositions[targetIndex];
         newInitialPositions[targetIndex] = newInitialPositions[sourceIndex];
         newInitialPositions[sourceIndex] = tempInitialPos;
@@ -117,16 +159,12 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
       setSelectedCard(null);
     } else {
       if (placedCards[targetIndex] !== null) {
-        // Si se hace clic en el espacio donde ya está la carta, la regresa a su lugar original
         const originalIndex = initialPositions[targetIndex];
         if (originalIndex !== null) {
           const newPlacedCards = [...placedCards];
           const newCards = [...cards];
-          
-          // Regresar la carta a su lugar original
           newCards[originalIndex] = placedCards[targetIndex];
           newPlacedCards[targetIndex] = null;
-          
           setPlacedCards(newPlacedCards);
           setCards(newCards);
           setSelectedCard(null);
@@ -137,83 +175,116 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
     }
   };
 
-  // Temporizador
   useEffect(() => {
     let interval;
     if (isTimerRunning) {
       interval = setInterval(() => {
         setTimer((prevTimer) => prevTimer + 1);
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  // Guardar el mejor tiempo en AsyncStorage
   const saveBestTime = async (time) => {
     try {
       const storedBestTime = await AsyncStorage.getItem(`bestTime_level_${level}`);
       if (!storedBestTime || time < parseInt(storedBestTime, 10)) {
         await AsyncStorage.setItem(`bestTime_level_${level}`, time.toString());
         setBestTime(time);
-      } else {
-        setBestTime(parseInt(storedBestTime, 10));
       }
     } catch (error) {
       console.error('Error guardando el mejor tiempo:', error);
     }
   };
 
-  // Obtener el mejor tiempo al cargar
-  useEffect(() => {
-    const fetchBestTime = async () => {
-      try {
-        const storedBestTime = await AsyncStorage.getItem(`bestTime_level_${level}`);
-        if (storedBestTime) {
-          setBestTime(parseInt(storedBestTime, 10));
-        }
-      } catch (error) {
-        console.error('Error obteniendo el mejor tiempo:', error);
+  const getGameData = async () => {
+    try {
+      const games = await gameService.getGames();
+      const game = games.find(g => g.game_ID === 2);
+      if (!game) {
+        throw new Error("Juego no encontrado en la base de datos");
       }
-    };
-    fetchBestTime();
-  }, [level]);
+      return {
+        gamePercentage: game.game_percentage || 5,
+        coinsEarned: game.game_coins || 10,
+        trophiesEarned: game.game_trophy || 1
+      };
+    } catch (error) {
+      console.error("Error al obtener datos del juego:", error.message);
+      return { gamePercentage: 5, coinsEarned: 10, trophiesEarned: 1 };
+    }
+  };
 
-   // Verificar el orden de las cartas colocadas
+  const updateGameData = async () => {
+    try {
+      setIsTimerRunning(false);
+
+      if (!clientId) {
+        throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
+      }
+
+      const gameProgress = await gameService.getGameProgress(clientId);
+      const multipliProgress = gameProgress.find(game => game.game_ID === 2);
+
+      const previousPlayedCount = multipliProgress ? multipliProgress.game_played_count || 0 : 0;
+      const previousTimePlayed = multipliProgress ? multipliProgress.game_time_played || 0 : 0;
+      const previousLevels = multipliProgress ? multipliProgress.game_levels || 0 : 0;
+
+      const isNewLevelLocal = previousLevels < level;
+      setIsNewLevel(isNewLevelLocal);
+
+      const { gamePercentage, coinsEarned: coins, trophiesEarned } = await getGameData();
+      setCoinsEarned(coins);
+
+      if (coins === undefined || trophiesEarned === undefined) {
+        throw new Error("Datos del juego incompletos: coins o trophiesEarned no están definidos.");
+      }
+
+      const gameData = {
+        game_ID: 2,
+        game_played_count: previousPlayedCount + 1,
+        game_levels: Math.max(previousLevels, level),
+        game_time_played: previousTimePlayed + timer,
+        coins_earned: coins,
+        trophies_earned: isNewLevelLocal ? trophiesEarned : 0,
+      };
+      await gameService.updateGameProgress(gameData, clientId);
+
+      await incrementGamePercentage(gamePercentage);
+      await updateCoins(coins);
+      if (isNewLevelLocal) {
+        await updateTrophies(trophiesEarned);
+      }
+
+      const agilIncrease = timer < 20 ? 5 : 2;
+      const tenazIncrease = 3;
+
+      await refreshUserData();
+
+      const newLevelsUnlocked = Math.max(previousLevels, level) + 1;
+      const levelsArray = Array.from({ length: newLevelsUnlocked }, (_, i) => i + 1);
+      setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
+    } catch (error) {
+      console.error("Error al actualizar datos del juego:", error.message);
+      showAlert("Error");
+    }
+  };
+
   const checkOrder = () => {
     const correctOrder = Array.from({ length: 10 }, (_, i) => (i + 1) * level);
     if (JSON.stringify(placedCards) === JSON.stringify(correctOrder)) {
+      setDidWin(true);
+      saveBestTime(timer);
+      updateGameData();
       showAlert('Correcto');
-      setIsTimerRunning(false); // Detener el temporizador
-      saveBestTime(timer); // Guardar el tiempo si es el mejor
-
-      // Desbloquear el siguiente nivel si aún no está desbloqueado
-      if (!unlockedLevels.includes(level + 1) && level < 12) {
-        const newUnlockedLevels = [...unlockedLevels, level + 1];
-        setUnlockedLevels(newUnlockedLevels);
-        // Guardar progreso de los niveles desbloqueados
-        AsyncStorage.setItem('unlockedLevels', JSON.stringify(newUnlockedLevels));
-      }
-
-      setTimeout(() => {
-        if (level < 12) {
-
-        } else {
-          // Si es el último nivel, mostrar mensaje o regresar a la pantalla de niveles
-          showAlert('Felicidades');
-        }
-      }, 1000);
     } else {
       showAlert('Error');
     }
   };
-  
-  // Títulos de las alertas.
+
   const mostrarTituloAlerta = (type) => {
     switch (type) {
       case 'startGame': return 'MULTIPLI TORTUGA';
-      case 'gameOver': return "Game Over";
       case 'exit': return 'SALIR';
       case 'Correcto': return '¡Correcto!';
       case 'EspacioOcupado': return 'Espacio ocupado';
@@ -222,14 +293,12 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
       default: return "Alerta";
     }
   };
-    
-  // Mensajes de las alertas.
+
   const mostrarMensajeAlerta = (type) => {
     switch (type) {
-      case 'startGame': return 'Completa la tabla correctamente en el menor orden posible.';
-      case 'gameOver': return "¿Quieres reiniciar el juego?";
+      case 'startGame': return 'Completa la tabla correctamente en el menor tiempo posible.';
       case 'exit': return "¿Quieres abandonar el juego?";
-      case 'Correcto': return "Has completado el nivel."; 
+      case 'Correcto': return `Has completado el nivel.\nRecompensas: ${coinsEarned} monedas${isNewLevel ? ", 1 trofeo" : ""}.`;
       case 'EspacioOcupado': return "Este espacio ya tiene una carta.";
       case 'Felicidades': return "Has completado todos los niveles.";
       case 'Error': return "El orden de las cartas es incorrecto.";
@@ -237,165 +306,143 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
     }
   };
 
-  // Al confirmar la alerta.
-  const handleConfirmAlert = () => {
-    switch (alerts.type) {
-      case 'startGame':
-        if (level === 1) {
-          setIsTimerRunning(true); // Inicia el temporizador al confirmar
-        }
-        break;
-      case 'gameOver':
-        reloadLevel(); // Reinicia el juego
-        break;
-      case 'exit':
-        navigation2.navigate('HomeScreen');
-        break;
-      case 'Felicidades':
-        navigation2.navigate('HomeScreen');
-        break;
-      case 'Correcto':
-        navigation2.replace('GameScreen', { level: level + 1 });
-        break;
-      default:
-        break;
-    }
-    hideAlert(); // Cierra la alerta
-  }; 
-  
-  // Al cancelar la alerta.
-  const handleCancelAlert = () => {
-    switch (alerts.type) {
-      case 'gameOver':
-        navigation2.goBack(); // Vuelve a la pantalla anterior
-        break;
-      case 'Felicidades':
-        navigation2.navigate('Level');
-        break;
-      case 'Correcto': 
-        navigation2.navigate('HomeScreen');
-        break;
-      default:
-        break;
-    }
-    hideAlert(); // Cierra la alerta
-  };
-  
-  // Texto del botón confirmar
   const textoConfirmar = (type) => {
     switch (type) {
       case 'startGame': return "JUGAR";
-      case 'gameOver': return "Reiniciar";
       case 'Felicidades': return "Salir";
-      case 'Correcto': return "Siguiente Nivel";
+      case 'Correcto': return level < 12 ? "Siguiente Nivel" : "Finalizar";
       default: return "Aceptar";
     }
   };
-  
-  // Texto del boton cancelar
+
   const textoCancelar = (type) => {
     switch (type) {
-      case 'gameOver': return "Abandonar";
       case 'Felicidades': return "Niveles";
       case 'Correcto': return "Salir";
       default: return "Cancelar";
     }
   };
 
-  // Esta función se ejecutará cuando el usuario presione el botón de retroceso
+  const handleConfirmAlert = async () => {
+    switch (alerts.type) {
+      case 'startGame':
+        await startGame();
+        hideAlert();
+        break;
+      case 'exit':
+        navigation2.navigate('HomeScreen');
+        hideAlert();
+        break;
+      case 'Felicidades':
+        navigation2.navigate('HomeScreen');
+        hideAlert();
+        break;
+      case 'Correcto':
+        if (level < 12) {
+          setIsTimerRunning(false);
+          setTimer(0);
+          setCards(generateCards(level + 1));
+          setPlacedCards(Array(10).fill(null));
+          setInitialPositions(Array(10).fill(null));
+          setSelectedCard(null);
+          setDidWin(false);
+          navigation2.navigate('GameScreen', { level: level + 1 });
+          setTimeout(() => setIsTimerRunning(true), 100);
+        } else {
+          showAlert("Felicidades");
+        }
+        hideAlert();
+        break;
+      case 'Error':
+        hideAlert();
+        break;
+      default:
+        hideAlert();
+        break;
+    }
+  };
+
+  const handleCancelAlert = () => {
+    switch (alerts.type) {
+      case 'Felicidades':
+        navigation2.navigate('Level');
+        break;
+      case 'Correcto':
+        navigation2.navigate('HomeScreen');
+        break;
+      default:
+        break;
+    }
+    hideAlert();
+  };
+
   const handleBackPress = () => {
-    setExitAttempt(true); // Marca el intento de salida
-    showAlert('exit'); // Muestra una alerta de confirmación
-    return true; // Retorna true para prevenir la acción predeterminada
-  };    
+    setExitAttempt(true);
+    showAlert('exit');
+    return true;
+  };
 
-  // Manejador de Retroceso.
   useEffect(() => {
-    // Configura el manejador de retroceso
     BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-
-    // Limpieza al desmontar el componente
     return () => {
       BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
     };
   }, []);
 
   return (
-
     <SafeAreaView style={styles.container}>
-
-      <View style={styles.Header}>
-
+      <View style={styles.header}>
         <View style={styles.cajaTitulo}>
-          <Text style={styles.titulo}>MULTIPLI TORTUGA</Text>
+          <Text style={styles.titulo}>{didWin ? "¡Completado!" : "MULTIPLI TORTUGA"}</Text>
         </View>
-
         <View style={styles.cajaIconos}>
-
           <Pressable style={styles.button} onPress={reloadLevel}>
             {({ pressed }) => (
               <Ionicons
                 name="reload-circle"
-                size={50}
-                color={pressed ? "#3f9c75" : "#327c5c"} // Cambia el color cuando está presionado
+                size={50 * scale}
+                color={pressed ? "#3f9c75" : "#327c5c"}
               />
             )}
           </Pressable>
-
           <View style={styles.cajaNivel}>
             <Text style={styles.Nivel}>NVL. {level}</Text>
           </View>
-
           <Pressable style={styles.button} onPress={() => showAlert('exit')}>
             {({ pressed }) => (
               <MaterialIcons
                 name="exit-to-app"
-                size={47}
-                color={pressed ? "#3f9c75" : "#327c5c"} // Cambia el color cuando está presionado
+                size={47 * scale}
+                color={pressed ? "#3f9c75" : "#327c5c"}
               />
             )}
           </Pressable>
-
         </View>
-
         <View style={styles.cajaPuntajes}>
-
-          <View style={styles.puntajeContainer}>
-              <Image 
-                source={require("../../../../assets/img/TortugaJuego.png")} 
-                style={styles.image} 
-                resizeMode="contain"
-              />
-              <Text style={styles.score}>{`${Math.floor(timer / 60)
-                .toString()
-                .padStart(2, '0')}:${(timer % 60).toString().padStart(2, '0')}`}
+          {bestTime !== null && (
+            <View style={styles.puntajeContainer}>
+              <Ionicons name="trophy" size={30 * scale} color="#327c5c" style={styles.icon} />
+              <Text style={styles.score}>
+                {`${Math.floor(bestTime / 60).toString().padStart(2, '0')}:${(bestTime % 60).toString().padStart(2, '0')}`}
               </Text>
-                {bestTime !== null && (
-                  <Text style={styles.bestTime}>
-                      <Image 
-                        source={require("../../../../assets/img/Trofeo.png")} 
-                        style={styles.image} 
-                        resizeMode="contain"
-                      />
-                    {`${Math.floor(bestTime / 60)
-                      .toString()
-                      .padStart(2, '0')}:${(bestTime % 60).toString().padStart(2, '0')}`}
-                  </Text>
-                )}
+            </View>
+          )}
+          <View style={styles.puntajeContainer}>
+            <MaterialIcons name="timer" size={30 * scale} color="#327c5c" style={styles.icon} />
+            <Text style={styles.score}>
+              {`${Math.floor(timer / 60).toString().padStart(2, '0')}:${(timer % 60).toString().padStart(2, '0')}`}
+            </Text>
           </View>
-
         </View>
-
       </View>
-
       <View style={styles.targetArea}>
         {placedCards.map((card, index) => (
           <View key={index} style={styles.targetWrapper}>
             <TouchableOpacity
               style={[
                 styles.targetSpace,
-                selectedCard?.type === 'available' && placedCards[index] === null 
-                  ? styles.highlightTargetSpace 
+                selectedCard?.type === 'available' && placedCards[index] === null
+                  ? styles.highlightTargetSpace
                   : null,
               ]}
               onPress={() => handlePlaceCard(index)}
@@ -406,7 +453,6 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
           </View>
         ))}
       </View>
-
       <View style={styles.fixedCardsContainer}>
         {cards.map((card, index) =>
           card !== null ? (
@@ -427,258 +473,168 @@ function GameScreen({ route, navigation, unlockedLevels, setUnlockedLevels }) {
           )
         )}
       </View>
-
       <TouchableOpacity style={styles.checkButton} onPress={checkOrder}>
         <Text style={styles.buttonText}>Comprobar</Text>
       </TouchableOpacity>
-
       {alerts.visible && (
         <CustomAlert
           showAlert={alerts.visible}
           title={mostrarTituloAlerta(alerts.type)}
           message={mostrarMensajeAlerta(alerts.type)}
           onConfirm={handleConfirmAlert}
-          onCancel={alerts.type === 'startGame' ? null : handleCancelAlert} // Si es startGame, no necesitas botón de cancelar
+          onCancel={alerts.type === 'startGame' ? null : handleCancelAlert}
           confirmText={textoConfirmar(alerts.type)}
           cancelText={textoCancelar(alerts.type)}
           confirmButtonColor="#429f74"
           cancelButtonColor="#9ed7bd"
         />
       )}
-
     </SafeAreaView>
-
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
-    backgroundColor: '#D8F3DC', 
+    backgroundColor: '#D8F3DC',
   },
-
-  bestTime: {
-    fontSize: 27,
-    color: '#3f9c75',
-    fontFamily: 'Quicksand',
-    marginLeft: 20,
-    fontFamily: 'Quicksand',
-  },
-
-  Header: {
+  header: {
     backgroundColor: "#ade6b6",
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 30,
-    marginHorizontal: 10,
-    paddingVertical: 10,
+    borderRadius: 30 * scale,
+    marginHorizontal: 10 * scale,
+    paddingVertical: 10 * scale,
   },
-
   cajaTitulo: {
-    marginVertical: 5,
+    marginVertical: 5 * scale,
   },
-  
   titulo: {
-    fontSize: 24,
+    fontSize: RFPercentage(3.5),
     color: '#3f9c75',
     fontFamily: 'Quicksand',
   },
-  
   cajaIconos: {
     flexDirection: 'row',
-    marginVertical: 5,
+    marginVertical: 5 * scale,
   },
-
   cajaNivel: {
-    borderRadius: 90,
+    borderRadius: 90 * scale,
     backgroundColor: '#327c5c',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 46,
-    width: 90,
+    height: 46 * scale,
+    width: 90 * scale,
   },
-
   Nivel: {
-    fontSize: 18,
+    fontSize: RFPercentage(2.5),
     color: '#D8F3DC',
     fontFamily: 'Quicksand',
   },
-  
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: 12 * scale,
   },
-
   cajaPuntajes: {
     flexDirection: 'row',
-    marginVertical: 5,
+    marginVertical: 5 * scale,
+    backgroundColor: "#c8edd1",
+    borderRadius: 30 * scale,
+    paddingHorizontal: 10 * scale,
   },
-
   puntajeContainer: {
-    flexDirection: 'row', // Para alinear imagen y texto en la misma línea
-    alignItems: 'center', // Para centrar la imagen y el texto verticalmente
-    marginHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8 * scale,
   },
-
-  image: {
-    width: 30,
-    height: 30,
-    marginRight: 5, // Espacio entre la imagen y el texto
+  icon: {
+    marginRight: 5 * scale,
   },
-  
   score: {
-    fontSize: 27,
+    fontSize: RFPercentage(3),
     color: '#3f9c75',
     fontFamily: 'Quicksand',
   },
-  
-  containerExitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  exitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-  },
-
-  exitText: {
-    fontSize: 16,
-    color: '#1B4332',
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-
-  titleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1B4332',
-  },
-
-  instruction: {
-    fontSize: 18,
-    color: '#081C15',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-
   targetArea: {
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
     width: '100%',
-    marginTop: 20,
+    marginTop: 20 * scale,
   },
-
   targetWrapper: {
-    width: 60,
-    height: 60,
-    margin: 10,
+    width: 60 * scale,
+    height: 80 * scale,
+    margin: 10 * scale,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   targetSpace: {
     width: '100%',
-    height: '100%',
-    backgroundColor: '#52B788', 
-    borderRadius: 10,
+    height: 60 * scale,
+    backgroundColor: '#52B788',
+    borderRadius: 10 * scale,
     justifyContent: 'center',
     alignItems: 'center',
     opacity: 0.55,
   },
-
   highlightTargetSpace: {
-    backgroundColor: '#1B4332', 
+    backgroundColor: '#1B4332',
     opacity: 1,
   },
-
   fixedCardsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    marginVertical: 20,
-    height: 235,
+    marginVertical: 20 * scale,
+    height: 235 * scale,
   },
-
   card: {
-    backgroundColor: '#52B788', 
-    width: 60,
-    height: 60,
-    margin: 10,
+    backgroundColor: '#52B788',
+    width: 60 * scale,
+    height: 60 * scale,
+    margin: 10 * scale,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 10 * scale,
     opacity: 1,
   },
-
   selectedCard: {
-    borderWidth: 2,
-    borderColor: '#1B4332', 
+    borderWidth: 2 * scale,
+    borderColor: '#1B4332',
   },
-
   cardText: {
-    fontSize: 16,
+    fontSize: RFPercentage(2.5),
     color: 'white',
     fontFamily: 'Quicksand',
   },
-  
   operationText: {
-    fontSize: 13,
-    color: '#081C15', 
-    marginTop: -2,
+    fontSize: RFPercentage(2),
+    color: '#081C15',
+    marginTop: 8 * scale,
     fontFamily: 'Quicksand',
   },
-
   checkButton: {
-    backgroundColor: '#1B4332', 
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
+    backgroundColor: '#1B4332',
+    padding: 10 * scale,
+    borderRadius: 10 * scale,
+    marginTop: 10 * scale,
     width: '50%',
     alignSelf: 'center',
   },
-
   buttonText: {
     textAlign: 'center',
     color: 'white',
-    fontSize: 18,
+    fontSize: RFPercentage(2.5),
+    fontFamily: 'Quicksand',
     fontWeight: 'bold',
   },
-
+  emptyCard: {
+    width: 60 * scale,
+    height: 60 * scale,
+    margin: 10 * scale,
+  },
 });
 
 export default GameScreen;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

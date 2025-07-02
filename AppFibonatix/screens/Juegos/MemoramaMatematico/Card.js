@@ -1,48 +1,46 @@
-// Componentes de React Native.
-import * as React from "react";
-import { Pressable, Text, StyleSheet, Image } from "react-native";
+import React from "react";
+import { Pressable, Text, StyleSheet, Dimensions } from "react-native";
+import { RFPercentage } from 'react-native-responsive-fontsize';
 
-export default function Card({onPress, isTurnedOver, children}) {
-    return (
-      <Pressable onPress={onPress} style={isTurnedOver ? styles.cardUp : styles.cardDown}>
-        {isTurnedOver ? (
-            <Text style={styles.text}>{children}</Text>
-        ) : (
-            <Text style={styles.textCardDown}><Image source={require("../../../assets/img/TortugaJuego.png")} style={{ width: 50, height: 30 }}/></Text>
-        )}
-      </Pressable>
-    );
-  }
+const { width } = Dimensions.get("window");
+const scale = width / 414;
 
-  const styles = StyleSheet.create({
-    cardUp: {
-        width: 90,
-        height: 90,
-        backgroundColor: "#fdd295",
-        alignItems: "center",
+const styles = StyleSheet.create({
+    card: {
+        width: 80 * scale,
+        height: 80 * scale,
+        margin: 5 * scale,
+        borderRadius: 10 * scale,
+        backgroundColor: "#da7e01",
         justifyContent: "center",
-        borderRadius: 25,
-        margin: 15,
-    },
-
-    cardDown: {
-        width: 90,
-        height: 90,
-        backgroundColor: "#eb8c05",
         alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 25,
-        margin: 15,
     },
-
-    text: {
-        fontSize: 40,
-        color: "#da7e01",
+    cardTurned: {
+        backgroundColor: "#FFD3B8",
+    },
+    cardText: {
+        fontSize: RFPercentage(3),
+        color: "#FFFFFF",
         fontFamily: "Quicksand",
     },
-
-    textCardDown: {
-      color: "#FF7509",
-  },
-
+    cardTextTurned: {
+        color: "#da7e01",
+    },
 });
+
+const Card = ({ children, isTurnedOver, onPress }) => {
+    return (
+        <Pressable
+        style={[styles.card, isTurnedOver && styles.cardTurned]}
+        onPress={onPress}
+        >
+        <Text
+            style={[styles.cardText, isTurnedOver && styles.cardTextTurned]}
+        >
+            {isTurnedOver ? children : "?"}
+        </Text>
+        </Pressable>
+    );
+};
+
+export default Card;

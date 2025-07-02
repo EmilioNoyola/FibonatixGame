@@ -26,7 +26,7 @@ export const LoginStyles = StyleSheet.create({
         marginHorizontal: 20,
         borderRadius: 30,
         padding: 20,
-        height: width * 1.2, // Ajustado para ser un poco más largo que el contenido de Register
+        height: width * 1.2, 
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
@@ -45,11 +45,11 @@ export const LoginStyles = StyleSheet.create({
         fontFamily: 'Quicksand_SemiBold',
         textAlign: 'center',
         color: '#0B5A39',
-        marginBottom: 30, // Aumentado para distribuir mejor el espacio
+        marginBottom: 30, 
     },
     inputContainer: {
-        gap: 15, // Aumentado para que los elementos no se vean demasiado juntos
-        marginBottom: 40, // Aumentado para mejor distribución
+        gap: 15,
+        marginBottom: 40, 
     },
     inputWrapper: {
         position: 'relative',
@@ -76,7 +76,7 @@ export const LoginStyles = StyleSheet.create({
         transform: [{ translateY: -12 }],
     },
     buttonContainer: {
-        marginBottom: 10, // Aumentado para que el botón no esté tan cerca del enlace
+        marginBottom: 10, 
         alignItems: 'center',
     },
     button: {

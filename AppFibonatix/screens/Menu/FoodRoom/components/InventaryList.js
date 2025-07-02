@@ -1,11 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withSpring 
 } from 'react-native-reanimated';
 import Svg, { Path } from "react-native-svg";
+
+import { StyleSheet, Dimensions } from 'react-native';
+import { RFPercentage } from 'react-native-responsive-fontsize';
+
+// Obtener dimensiones de la pantalla
+const { width, height } = Dimensions.get('window');
+
+// Definir una proporción base para escalar elementos (basada en un ancho de diseño de 414px)
+const scale = width / 414;
+
+// Ajustar ITEM_WIDTH para que sea responsivo (originalmente 200px en un diseño de 414px)
+const ITEM_WIDTH = 200 * scale;
+
 
 const alimentos = [
   { id: 1, nombre: 'Camaron', imagen: { uri: 'https://raw.githubusercontent.com/EmilioNoyola/FibonatixGame/refs/heads/main/IMG/Comida/Inventario/Camaron.png' }, cantidad: 10 },
@@ -73,8 +86,8 @@ export default function InventaryList() {
 
 // Componente de ítem individual
 function InventaryItem({ item, isActive, offset }) {
-  // Reducimos el factor para el desplazamiento horizontal:
-  const baseOffset = 15; // Prueba con 10 o 15 según tu diseño
+  // Reducimos aún más el factor para el desplazamiento horizontal
+  const baseOffset = 7; // Ajustado a 7 para una separación más compacta
 
   // Valores compartidos para la traslación y la escala
   const translation = useSharedValue(offset * baseOffset);
@@ -115,62 +128,61 @@ function InventaryItem({ item, isActive, offset }) {
 
 const styles = StyleSheet.create({
   containerInventary: {
-    width: '90%',
-    height: '50%',
+    width: '80%',
+    height: '40%', // Ajustado para coincidir con el diseño original
     backgroundColor: '#ffd6ad',
-    borderRadius: 30,
+    borderRadius: 30 * scale,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    borderWidth: 5,
+    borderWidth: 5 * scale,
     borderColor: '#d16a00',
   },
   itemsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 15,
-    // width: '65%',
+    marginHorizontal: 18 * scale, // Reducido a 10 para menos separación
   },
   itemContainer: {
     alignItems: 'center',
   },
   item: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50 * scale,
+    height: 50 * scale,
+    borderRadius: 25 * scale,
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
   },
   image: {
-    width: 50,
-    height: 50,
+    width: 40 * scale, // Reducido a 40 para un tamaño más cercano al original
+    height: 40 * scale, // Reducido a 40 para un tamaño más cercano al original
     resizeMode: 'contain',
   },
   priceTab: {
-    marginTop: '20%',
+    marginTop: '15%', // Reducido a 15% para ajustar la posición
     backgroundColor: '#d16a00',
     width: '80%',
-    height: '50%',
-    borderRadius: 10,
+    height: '70%', // Reducido a 40% para mejor proporción
+    borderRadius: 10 * scale,
     justifyContent: 'center',
     alignItems: 'center',
     borderColor: '#d16a00',
-    borderWidth: 5,
+    borderWidth: 5 * scale,
     zIndex: 1,
   },
   priceText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 15 * scale,
     fontWeight: 'bold',
   },
   arrowButton: {
-    width: 40,
-    height: 40,
+    width: 40 * scale,
+    height: 40 * scale,
     justifyContent: 'center',
     alignItems: 'center',
   },

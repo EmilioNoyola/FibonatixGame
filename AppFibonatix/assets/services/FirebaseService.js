@@ -1,3 +1,4 @@
+// Funciones para la interacción con Firebase.
 import '../services/Credentials';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { 
@@ -34,21 +35,6 @@ export const authService = {
 };
 
 export const userService = {
-    findUserByUsername: async (username) => {
-        try {
-            const q = query(collection(db, "users"), where("username", "==", username));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                return querySnapshot.docs[0].data();
-            }
-            return null;
-        } catch (error) {
-            console.error("Error al buscar usuario:", error);
-            throw error;
-        }
-    },
-    
     usernameExists: async (username) => {
         try {
             const usersRef = collection(db, "users");

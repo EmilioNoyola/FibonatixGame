@@ -1,19 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';  
-import { Text, View, SafeAreaView, StatusBar, Pressable, StyleSheet, Animated, BackHandler, ScrollView, RefreshControl } from 'react-native';
-
+import { Text, View, SafeAreaView, StatusBar, Pressable, Animated, BackHandler, ScrollView, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import useCustomFonts from '../../../assets/components/FontsConfigure';
 import { MaterialIcons } from '@expo/vector-icons';
 import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
+import { useBluetooth } from '../../../assets/context/BluetoothContext';
+import { plushieService } from '../../../assets/services/PlushieService';
+import useCustomFonts from '../../../assets/components/FontsConfigure';
 import { FocusOn, FocusOff } from '../../../assets/img-svg';
 import MissionsScreen from './components/MissionsScreen';
 import { useFocus } from '../../../assets/components/FocusContext';
 import { useAppContext } from '../../../assets/context/AppContext';
 import AnimatedBar from '../../../assets/components/AnimatedBar';
+import StatusAlertModal from '../../../assets/components/StatusAlertModal';
+import * as Notifications from 'expo-notifications';
+import { styles } from './components/BedroomStyles';
 
-export default function BeedRoomScreen(props) {
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export default function BedroomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    const { globalData, refreshUserData } = useAppContext();
+    const { socket, globalData, refreshUserData, alert, setAlert, updateSleepPercentage, clientId } = useAppContext();
     const [refreshing, setRefreshing] = useState(false);
     if (!fontsLoaded) return null;
 
@@ -22,9 +34,32 @@ export default function BeedRoomScreen(props) {
     const [showOverlay, setShowOverlay] = useState(false);
     const overlayOpacity = useRef(new Animated.Value(0)).current;
     const [toggleDisabled, setToggleDisabled] = useState(false);
+    const [regenerationTime, setRegenerationTime] = useState(0);
+    const { isConnected, writeToCharacteristic } = useBluetooth();
+    const cleanupFSRRef = useRef(null);
 
     useEffect(() => {
-        if (!isFocusOn) {
+        if (alert && isConnected) {
+            if (cleanupFSRRef.current?.pauseMonitoring) {
+                cleanupFSRRef.current.pauseMonitoring();
+            }
+            
+            plushieService.handleStatusAlert(writeToCharacteristic, isConnected, alert);
+            
+            const timer = setTimeout(() => {
+                setAlert(null);
+                if (cleanupFSRRef.current?.resumeMonitoring) {
+                    cleanupFSRRef.current.resumeMonitoring();
+                }
+            }, 3000);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [alert, isConnected]);
+
+    useEffect(() => {
+        let interval;
+        if (!isFocusOn && globalData.sleepPercentage < 100) {
             setShowOverlay(true);
             Animated.timing(overlayOpacity, {
                 toValue: 1,
@@ -33,6 +68,19 @@ export default function BeedRoomScreen(props) {
             }).start(() => {
                 setToggleDisabled(false);
             });
+
+            interval = setInterval(async () => {
+                try {
+                    await updateSleepPercentage(0.2);
+                    // Forzar sincronización periódica
+                    if (Math.floor(globalData.sleepPercentage) % 10 === 0) {
+                        await forceSync();
+                    }
+                } catch (error) {
+                    console.error("Error al actualizar sueño:", error);
+                    clearInterval(interval);
+                }
+            }, 1000);
         } else {
             Animated.timing(overlayOpacity, {
                 toValue: 0,
@@ -43,7 +91,29 @@ export default function BeedRoomScreen(props) {
                 setToggleDisabled(false);
             });
         }
-    }, [isFocusOn, overlayOpacity]);    
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isFocusOn, overlayOpacity]);
+
+    useEffect(() => {
+        if (!socket || !clientId) return;
+
+        const handleFocusToggle = () => {
+            socket.emit("toggleFocus", { clientId, isFocusOn }, (ack) => {
+                if (!ack?.success) {
+                    console.error("Error al sincronizar estado del foco");
+                    // Revertir el estado si falla la sincronización
+                    setIsFocusOn(prev => !prev);
+                }
+            });
+        };
+
+        const timer = setTimeout(handleFocusToggle, 500); // Pequeño delay para evitar sobrecarga
+
+        return () => clearTimeout(timer);
+    }, [isFocusOn, clientId, socket]);
 
     useEffect(() => {
         const onBackPress = () => {
@@ -82,219 +152,137 @@ export default function BeedRoomScreen(props) {
         }
     };
 
+    // Configurar notificaciones push
+    useEffect(() => {
+        const checkStatus = async () => {
+            const now = Date.now();
+            const lastAlertTime = globalData.lastAlertTime || 0;
+            if (now - lastAlertTime < 30000) return;
+
+            const scheduleNotification = async (title, message) => {
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: title,
+                        body: message,
+                        sound: true,
+                    },
+                    trigger: null, 
+                });
+                setGlobalData(prev => ({ ...prev, lastAlertTime: now }));
+            };
+
+            if (globalData.sleepPercentage <= 5) {
+                const timeToFull = ((100 - globalData.sleepPercentage) * 3000 / 100) / 60000;
+                await scheduleNotification(
+                    '¡Tu tortuga tiene mucho sueño!',
+                    `Falta ${Math.ceil(timeToFull)} min para regenerar el sueño.`
+                );
+            } else if (globalData.sleepPercentage <= 15) {
+                const timeToFull = ((100 - globalData.sleepPercentage) * 3000 / 100) / 60000;
+                await scheduleNotification(
+                    '¡Tu tortuga tiene sueño!',
+                    `Falta ${Math.ceil(timeToFull)} min para regenerar el sueño.`
+                );
+            }
+            if (globalData.foodPercentage <= 5) {
+                const timeToFull = (100 - globalData.foodPercentage) * 1800 / 100; // 3 min
+                await scheduleNotification(
+                    '¡Tu tortuga tiene mucha hambre!',
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`,
+                    timeToFull
+                );
+            } else if (globalData.foodPercentage <= 15) {
+                const timeToFull = (100 - globalData.foodPercentage) * 1800 / 100;
+                await scheduleNotification(
+                    '¡Tu tortuga tiene hambre!',
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`,
+                    timeToFull
+                );
+            }
+            if (globalData.gamePercentage <= 5) {
+                const timeToFull = (100 - globalData.gamePercentage) * 2400 / 100; // 4 min
+                await scheduleNotification(
+                    '¡Tu tortuga quiere jugar mucho!',
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`,
+                    timeToFull
+                );
+            } else if (globalData.gamePercentage <= 15) {
+                const timeToFull = (100 - globalData.gamePercentage) * 2400 / 100;
+                await scheduleNotification(
+                    '¡Tu tortuga quiere jugar!',
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`,
+                    timeToFull
+                );
+            }
+        };
+
+        const interval = setInterval(checkStatus, 30000); // Verificar cada 30 segundos
+        return () => clearInterval(interval);
+    }, [globalData]);
+
     return (
         <SafeAreaView style={styles.container}>
-                <View style={styles.container} pointerEvents={!isFocusOn ? "none" : "auto"}>
-                    <StatusBar
-                        barStyle="dark-content"
-                        translucent={true}
-                        backgroundColor="transparent"
-                    />
-
-                    <View style={styles.header}>
-                        <View style={{ marginHorizontal: 10, marginTop: 30 }}>
-                            <ScrollView
-                                contentContainerStyle={{ flexGrow: 1 }}
-                                showsVerticalScrollIndicator={false}
-                                showsHorizontalScrollIndicator={false}
-                                refreshControl={
-                                    <RefreshControl
-                                        refreshing={refreshing}
-                                        onRefresh={onRefresh}
-                                        tintColor="#478CDB"
-                                        colors={['#478CDB']}
-                                    />
-                                }
-                                // Desactivamos el rebote en la parte superior para que se vea más natural
-                                bounces={true}
-                            >
-                                <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
-                                    <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
-                                        <MaterialIcons name="menu" size={30} color="white" />
-                                    </Pressable>
-
-                                    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                                        <View style={styles.containerEmotion}>
-                                            <View style={styles.Emotion}>
-                                                <SimpleLineIcons name="energy" size={40} color="#15448e" />
-                                            </View>
-                                        </View>
-                                        <AnimatedBar
-                                            percentage={globalData.sleepPercentage || 0}
-                                            barStyle={styles.BarEmotion}
-                                            containerStyle={styles.containerBarEmotion}
-                                        />
+            <View style={styles.container} pointerEvents={!isFocusOn ? "none" : "auto"}>
+                <StatusBar
+                    barStyle="dark-content"
+                    translucent={true}
+                    backgroundColor="transparent"
+                />
+                <View style={styles.header}>
+                    <View style={{ marginHorizontal: 10 * styles.scale, marginTop: 30 * styles.scale }}>
+                        <View style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }}>
+                            <Pressable onPress={() => { navigation.openDrawer(); }} style={styles.menuButton}>
+                                <MaterialIcons name="menu" size={30 * styles.scale} color="white" />
+                            </Pressable>
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                                <View style={styles.containerEmotion}>
+                                    <View style={styles.Emotion}>
+                                        <SimpleLineIcons name="energy" size={40 * styles.scale} color="#15448e" />
                                     </View>
                                 </View>
-                            </ScrollView>
-
-                            <View style={{ marginTop: -5 }}>
-                                <Text style={styles.textHeader}>Dormitorio</Text>
+                                <AnimatedBar
+                                    percentage={globalData.sleepPercentage || 0}
+                                    barStyle={styles.BarEmotion}
+                                    containerStyle={styles.containerBarEmotion}
+                                />
                             </View>
                         </View>
-                    </View>
-
-                    <View style={styles.containerSleep}>
-                        <View style={styles.containerFocus}>
-                            {isFocusOn && (
-                                <Pressable style={styles.Focus} onPress={toggleFocus}>
-                                    <FocusOn />
-                                </Pressable>
-                            )}
-                        </View>
-
-                        <View style={styles.containerMisions}>
-                            <MissionsScreen />
+                        <View style={{ marginTop: -5 * styles.scale }}>
+                            <Text style={styles.textHeader}>Dormitorio</Text>
                         </View>
                     </View>
                 </View>
-
-                {showOverlay && (
-                    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-                        <Pressable style={styles.Focus2} onPress={toggleFocus} pointerEvents="auto">
-                            <FocusOff />
-                        </Pressable>
-                    </Animated.View>
-                )}
-            
+                <View style={styles.containerSleep}>
+                    <View style={styles.containerFocus}>
+                        {isFocusOn && (
+                            <Pressable style={styles.Focus} onPress={toggleFocus}>
+                                <FocusOn />
+                            </Pressable>
+                        )}
+                        {!isFocusOn && regenerationTime > 0 && (
+                            <Text style={styles.timerText}>
+                                Regenerando: {Math.ceil(regenerationTime / 1000)}s
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.containerMisions}>
+                        <MissionsScreen />
+                    </View>
+                </View>
+            </View>
+            {showOverlay && (
+                <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+                    <Pressable style={styles.Focus2} onPress={toggleFocus} pointerEvents="auto">
+                        <FocusOff />
+                    </Pressable>
+                </Animated.View>
+            )}
+            <StatusAlertModal
+                key={alert ? `${alert.type}-${alert.level}-${globalData.lastAlertTime}` : null}
+                visible={!!alert}
+                type={alert?.type}
+                onClose={() => setAlert(null)}
+            />
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#B7E0FE',
-        justifyContent: 'space-between',
-    },
-    header: {
-        backgroundColor: '#478CDB',
-        height: 164,
-        borderBottomLeftRadius: 15,
-        borderBottomRightRadius: 15,
-    },
-    textHeader: {
-        fontSize: 48,
-        color: 'white',
-        fontFamily: 'Quicksand',
-        textAlign: 'center',
-    },
-    menuButton: {
-        backgroundColor: 'black',
-        borderRadius: 70,
-        width: 50,
-        height: 50,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    containerEmotion: {
-        backgroundColor: '#15448e',
-        borderRadius: 80,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 10,
-        zIndex: 1,
-    },
-    Emotion: {
-        backgroundColor: '#86cee9',
-        borderRadius: 60,
-        width: 50,
-        height: 50,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 20,
-        zIndex: 1,
-        position: 'absolute',
-    },
-    containerBarEmotion: {
-        backgroundColor: '#15448e',
-        borderTopRightRadius: 60,
-        borderBottomRightRadius: 60,
-        width: 250,
-        height: 35,
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        marginLeft: -10,
-        overflow: 'hidden',
-    },
-    BarEmotion: {
-        backgroundColor: '#04a2e1',
-        borderTopRightRadius: 60,
-        borderBottomRightRadius: 60,
-        height: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: -10,
-        position: 'relative',
-    },
-    containerSleep: {
-        backgroundColor: '#7cc7fd',
-        width: '100%',
-        height: '60%',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        position: 'relative',
-    },
-    containerFocus: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: '#B7E0FE',
-        position: 'absolute',
-        top: -100,
-        left: '50%',
-        transform: [{ translateX: -100 }],
-        zIndex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    Focus: {
-        width: 180,
-        height: 180,
-        borderRadius: 90,
-        backgroundColor: '#478CDB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    Focus2: {
-        width: 180,
-        height: 180,
-        borderRadius: 150,
-        marginBottom: '40%',
-        backgroundColor: '#478CDB',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    containerMisions: {
-        flex: 1,
-        width: '85%',
-        marginBottom: 20,
-        backgroundColor: '#57A4FD',
-        marginTop: 120,
-        alignSelf: 'center',
-        borderRadius: 20,
-    },
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 100,
-    },    
-});

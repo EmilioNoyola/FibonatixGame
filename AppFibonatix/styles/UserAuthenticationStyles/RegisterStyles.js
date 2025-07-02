@@ -26,7 +26,7 @@ export const RegisterStyles = StyleSheet.create({
         marginHorizontal: 20,
         borderRadius: 30,
         padding: 20,
-        height: width * 1.3, // Ajustado para ser un poco más largo que el contenido
+        height: width * 1.3,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
