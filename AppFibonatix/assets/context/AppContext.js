@@ -112,14 +112,6 @@ export const AppProvider = ({ children }) => {
     );
 
     useEffect(() => {
-        const appStateListener = AppState.addEventListener('change', (nextAppState) => {
-            if (nextAppState === 'active' && socket) {
-                socket.connect();
-                socket.emit("join", { clientId });
-            } else if (nextAppState === 'background' && socket) {
-                socket.disconnect();
-            }
-        });
 
         if (!user || !clientId) return;
 
@@ -142,39 +134,55 @@ export const AppProvider = ({ children }) => {
             console.log("Desconectado del servidor WebSocket:", reason);
             setSocketReady(false);
             if (reason === "io server disconnect") {
-                newSocket.connect();
+                // Intentar reconectar después de un breve retraso
+                setTimeout(() => {
+                    newSocket.connect();
+                }, 2000);
             }
         };
 
         const handleUpdate = (data) => {
             setGlobalData(prev => {
-                const changes = {};
-                if (Math.abs(data.gamePercentage - (prev.gamePercentage || 0)) > 1) changes.gamePercentage = data.gamePercentage;
-                if (Math.abs(data.foodPercentage - (prev.foodPercentage || 0)) > 1) changes.foodPercentage = data.foodPercentage;
-                if (Math.abs(data.sleepPercentage - (prev.sleepPercentage || 0)) > 1) changes.sleepPercentage = data.sleepPercentage;
-                return Object.keys(changes).length ? { ...prev, ...changes } : prev;
+                // Eliminar el filtro estricto de diferencias > 1
+                const newData = {
+                    ...prev,
+                    coins: data.coins !== undefined ? data.coins : prev.coins,
+                    trophies: data.trophies !== undefined ? data.trophies : prev.trophies,
+                    gamePercentage: data.gamePercentage !== undefined ? data.gamePercentage : prev.gamePercentage,
+                    foodPercentage: data.foodPercentage !== undefined ? data.foodPercentage : prev.foodPercentage,
+                    sleepPercentage: data.sleepPercentage !== undefined ? data.sleepPercentage : prev.sleepPercentage,
+                    lastAlertTime: data.lastAlertTime !== undefined ? data.lastAlertTime : prev.lastAlertTime
+                };
+                
+                // Verificar si hubo cambios reales
+                if (JSON.stringify(prev) !== JSON.stringify(newData)) {
+                    return newData;
+                }
+                return prev;
             });
             debouncedCheckStatus(data);
         };
 
-        const handleError = (error) => {
-            console.error("Error en WebSocket:", error);
+        const handleConnectError = (error) => {
+            console.error("Error de conexión WebSocket:", error);
             setSocketReady(false);
         };
 
         newSocket.on("connect", handleConnect);
         newSocket.on("disconnect", handleDisconnect);
+        newSocket.on("connect_error", handleConnectError);
         newSocket.on("updateGlobalData", handleUpdate);
-        newSocket.on("error", handleError);
+
+        // Intentar conectar inicialmente
+        newSocket.connect();
 
         setSocket(newSocket);
 
         return () => {
-            appStateListener.remove();
             newSocket.off("connect", handleConnect);
             newSocket.off("disconnect", handleDisconnect);
+            newSocket.off("connect_error", handleConnectError);
             newSocket.off("updateGlobalData", handleUpdate);
-            newSocket.off("error", handleError);
             newSocket.disconnect();
         };
     }, [user, clientId, debouncedCheckStatus]);
@@ -258,6 +266,20 @@ export const AppProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
+    useEffect(() => {
+        if (!user || !clientId) return;
+
+        const syncInterval = setInterval(async () => {
+            try {
+                await forceSync();
+            } catch (error) {
+                console.error("Error en sincronización periódica:", error);
+            }
+        }, 30000); // Cada 30 segundos
+
+        return () => clearInterval(syncInterval);
+    }, [user, clientId]);
+
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
         try {
@@ -276,13 +298,8 @@ export const AppProvider = ({ children }) => {
         try {
             const updatedData = await globalDataService.updateGamePercentage(amount, clientId);
             setGlobalData(prev => ({ ...prev, gamePercentage: updatedData.gamePercentage }));
-            await forceSync();
-            if (socket && socket.connected) {
-                socket.emit("manualUpdate", {
-                    clientId,
-                    gamePercentage: updatedData.gamePercentage,
-                });
-            }
+            const fullData = await forceSync();
+            setGlobalData(fullData);
             return updatedData;
         } catch (error) {
             console.error("Error updating game percentage:", error);
@@ -295,7 +312,8 @@ export const AppProvider = ({ children }) => {
         try {
             const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
             setGlobalData(prev => ({ ...prev, foodPercentage: updatedData.foodPercentage }));
-            await forceSync();
+            const fullData = await forceSync();
+            setGlobalData(fullData);
             return updatedData;
         } catch (error) {
             console.error("Error updating food percentage:", error);
@@ -308,7 +326,8 @@ export const AppProvider = ({ children }) => {
         try {
             const updatedData = await globalDataService.updateSleepPercentage(amount, clientId);
             setGlobalData(prev => ({ ...prev, sleepPercentage: updatedData.sleepPercentage }));
-            await forceSync();
+            const fullData = await forceSync();
+            setGlobalData(fullData);
             return updatedData;
         } catch (error) {
             console.error("Error updating sleep percentage:", error);
@@ -320,8 +339,13 @@ export const AppProvider = ({ children }) => {
         if (!user || !clientId) return;
         try {
             const updatedData = await globalDataService.updateCoins(amount, clientId);
-            setGlobalData(prev => ({ ...prev, coins: updatedData.coins }));
-            await forceSync();
+            setGlobalData(prev => ({ 
+                ...prev, 
+                coins: updatedData.coins 
+            }));
+            // Forzar sincronización completa
+            const fullData = await forceSync();
+            setGlobalData(fullData);
             return updatedData;
         } catch (error) {
             console.error("Error updating coins:", error);
@@ -334,7 +358,8 @@ export const AppProvider = ({ children }) => {
         try {
             const updatedData = await globalDataService.updateTrophies(amount, clientId);
             setGlobalData(prev => ({ ...prev, trophies: updatedData.trophies }));
-            await forceSync();
+            const fullData = await forceSync();
+            setGlobalData(fullData);
             return updatedData;
         } catch (error) {
             console.error("Error updating trophies:", error);
