@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { globalDataService, personalityService } from '../services/ApiService';
 import { io } from 'socket.io-client';
+import { AppState } from 'react-native'; // Added missing import
 import { SOCKET_URL } from '../services/ApiService';
 
 const AppContext = createContext();
@@ -276,6 +277,12 @@ export const AppProvider = ({ children }) => {
             const updatedData = await globalDataService.updateGamePercentage(amount, clientId);
             setGlobalData(prev => ({ ...prev, gamePercentage: updatedData.gamePercentage }));
             await forceSync();
+            if (socket && socket.connected) {
+                socket.emit("manualUpdate", {
+                    clientId,
+                    gamePercentage: updatedData.gamePercentage,
+                });
+            }
             return updatedData;
         } catch (error) {
             console.error("Error updating game percentage:", error);
