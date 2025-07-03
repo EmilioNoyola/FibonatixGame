@@ -5,6 +5,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { globalDataService, personalityService } from '../services/ApiService';
 import { io } from 'socket.io-client';
 import { AppState } from 'react-native'; // Added missing import
+import { Platform } from 'react-native';
 import { SOCKET_URL } from '../services/ApiService';
 
 const AppContext = createContext();
@@ -50,6 +51,68 @@ export const AppProvider = ({ children }) => {
         alertCooldown: 30000,
         isAlertActive: false,
     });
+
+    const [appState, setAppState] = useState(AppState.currentState);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
+
+    // Función para registrar el inicio de sesión
+    const startAppSession = async () => {
+        if (!clientId) return;
+        
+        try {
+            const response = await api.post('/api/startAppSession', { client_ID: clientId });
+            setCurrentSessionId(response.data.session_ID);
+            console.log('Sesión de aplicación iniciada:', response.data.session_ID);
+        } catch (error) {
+            console.error('Error al iniciar sesión de aplicación:', error);
+        }
+    };
+
+    // Función para registrar el cierre de sesión
+    const endAppSession = async () => {
+        if (!clientId || !currentSessionId) return;
+        
+        try {
+            await api.post('/api/endAppSession', { 
+                session_ID: currentSessionId,
+                client_ID: clientId
+            });
+            console.log('Sesión de aplicación finalizada:', currentSessionId);
+            setCurrentSessionId(null);
+        } catch (error) {
+            console.error('Error al finalizar sesión de aplicación:', error);
+        }
+    };
+
+    // Manejar cambios en el estado de la aplicación
+    useEffect(() => {
+        const handleAppStateChange = async (nextAppState) => {
+            if (appState.match(/inactive|background/) && nextAppState === 'active') {
+                // La aplicación acaba de entrar en primer plano
+                await startAppSession();
+            } else if (nextAppState.match(/inactive|background/)) {
+                // La aplicación acaba de ir a segundo plano
+                await endAppSession();
+            }
+            
+            setAppState(nextAppState);
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        
+        // Iniciar sesión al montar el componente si ya está autenticado
+        if (isAuthenticated) {
+            startAppSession();
+        }
+
+        return () => {
+            subscription.remove();
+            // Finalizar sesión al desmontar el componente si está activa
+            if (currentSessionId) {
+                endAppSession();
+            }
+        };
+    }, [isAuthenticated, clientId, currentSessionId]);
 
     const forceSync = async () => {
         if (!user || !clientId) return;
