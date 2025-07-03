@@ -40,6 +40,7 @@ const GameLevel = ({ navigation, route }) => {
   const [isNewLevel, setIsNewLevel] = useState(false);
   const [didWin, setDidWin] = useState(false);
   const [previousGameProgress, setPreviousGameProgress] = useState(null);
+  const [wrongAttempts, setWrongAttempts] = useState(0); // Nuevo estado para intentos fallidos
 
   const screenWidth = Dimensions.get('window').width;
   const scale = screenWidth / 414;
@@ -139,6 +140,7 @@ const GameLevel = ({ navigation, route }) => {
       if (levelNumber === 1) {
         // No guardamos en AsyncStorage
       }
+      setWrongAttempts(0); // Reiniciar intentos fallidos al empezar
     } catch (error) {
       console.error("Error al iniciar partida:", error.message);
       showAlert("Error");
@@ -161,6 +163,7 @@ const GameLevel = ({ navigation, route }) => {
     setTimerActive(true);
     setDidWin(false);
     setSelectedColor(null);
+    setWrongAttempts(0); // Reiniciar intentos fallidos al reiniciar
   };
 
   const getGameData = async () => {
@@ -222,6 +225,20 @@ const GameLevel = ({ navigation, route }) => {
         await updateTrophies(trophiesEarned);
       }
 
+      // Lógica para Game_Performance
+      if (dibujitortugaProgress && dibujitortugaProgress.game_progress_ID) {
+        const totalCorrectAttempts = gridData.flat().filter(cell => cell.color === colorMapping[cell.result]).length; // Cuenta celdas correctamente coloreadas
+        const totalWrongAttempts = wrongAttempts; // Acumula intentos fallidos
+        const avgTime = timePlayed > 0 ? timePlayed / (totalCorrectAttempts + totalWrongAttempts || 1) : 0; // Tiempo promedio ajustado
+
+        await gameService.updateGamePerformance(
+          dibujitortugaProgress.game_progress_ID,
+          totalCorrectAttempts,
+          totalWrongAttempts,
+          avgTime
+        );
+      }
+
       const agilIncrease = timePlayed < 20 ? 5 : 2;
       const tenazIncrease = 3;
 
@@ -266,6 +283,7 @@ const GameLevel = ({ navigation, route }) => {
         showAlert("Correcto");
       }
     } else {
+      setWrongAttempts(wrongAttempts + 1); // Incrementa intentos fallidos
       showAlert("Incorrecto");
     }
   };

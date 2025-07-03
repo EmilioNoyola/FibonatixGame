@@ -46,11 +46,10 @@ export const AppProvider = ({ children }) => {
     const [alertState, setAlertState] = useState({
         currentAlert: null,
         lastAlertTime: 0,
-        alertCooldown: 30000, // 30 segundos
-        isAlertActive: false
+        alertCooldown: 30000,
+        isAlertActive: false,
     });
 
-    // Función para forzar sincronización con el servidor
     const forceSync = async () => {
         if (!user || !clientId) return;
         
@@ -64,7 +63,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Función checkStatusLevels con useCallback para memoización
     const checkStatusLevels = useCallback((data) => {
         const now = Date.now();
         const { currentAlert, lastAlertTime, alertCooldown, isAlertActive } = alertState;
@@ -94,40 +92,43 @@ export const AppProvider = ({ children }) => {
                 ...prev,
                 currentAlert: newAlert,
                 lastAlertTime: now,
-                isAlertActive: true
+                isAlertActive: true,
             }));
-            
             setAlert(newAlert);
-            
             setTimeout(() => {
                 setAlertState(prev => ({
                     ...prev,
-                    isAlertActive: false
+                    isAlertActive: false,
                 }));
                 setAlert(null);
             }, 3000);
         }
     }, [alertState]);
 
-    // Debounced version de checkStatusLevels
     const debouncedCheckStatus = useCallback(
-        debounce((data) => {
-            checkStatusLevels(data);
-        }, 1000),
+        debounce((data) => checkStatusLevels(data), 1000),
         [checkStatusLevels]
     );
 
-    // Efecto para manejar la conexión WebSocket
     useEffect(() => {
+        const appStateListener = AppState.addEventListener('change', (nextAppState) => {
+            if (nextAppState === 'active' && socket) {
+                socket.connect();
+                socket.emit("join", { clientId });
+            } else if (nextAppState === 'background' && socket) {
+                socket.disconnect();
+            }
+        });
+
         if (!user || !clientId) return;
 
         const newSocket = io(SOCKET_URL, {
-            autoConnect: true,
+            autoConnect: false,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            randomizationFactor: 0.5
+            randomizationFactor: 0.5,
         });
 
         const handleConnect = () => {
@@ -146,17 +147,10 @@ export const AppProvider = ({ children }) => {
 
         const handleUpdate = (data) => {
             setGlobalData(prev => {
-                // Solo actualizar si hay cambios significativos (> 1%)
                 const changes = {};
-                if (Math.abs(data.gamePercentage - (prev.gamePercentage || 0)) > 1) {
-                    changes.gamePercentage = data.gamePercentage;
-                }
-                if (Math.abs(data.foodPercentage - (prev.foodPercentage || 0)) > 1) {
-                    changes.foodPercentage = data.foodPercentage;
-                }
-                if (Math.abs(data.sleepPercentage - (prev.sleepPercentage || 0)) > 1) {
-                    changes.sleepPercentage = data.sleepPercentage;
-                }
+                if (Math.abs(data.gamePercentage - (prev.gamePercentage || 0)) > 1) changes.gamePercentage = data.gamePercentage;
+                if (Math.abs(data.foodPercentage - (prev.foodPercentage || 0)) > 1) changes.foodPercentage = data.foodPercentage;
+                if (Math.abs(data.sleepPercentage - (prev.sleepPercentage || 0)) > 1) changes.sleepPercentage = data.sleepPercentage;
                 return Object.keys(changes).length ? { ...prev, ...changes } : prev;
             });
             debouncedCheckStatus(data);
@@ -175,6 +169,7 @@ export const AppProvider = ({ children }) => {
         setSocket(newSocket);
 
         return () => {
+            appStateListener.remove();
             newSocket.off("connect", handleConnect);
             newSocket.off("disconnect", handleDisconnect);
             newSocket.off("updateGlobalData", handleUpdate);
@@ -183,10 +178,9 @@ export const AppProvider = ({ children }) => {
         };
     }, [user, clientId, debouncedCheckStatus]);
 
-    // Efecto para manejar el estado de autenticación
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            setLoading(true); 
+            setLoading(true);
             if (!currentUser) {
                 setUser(null);
                 setIsAuthenticated(false);
@@ -211,11 +205,8 @@ export const AppProvider = ({ children }) => {
 
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                if (userDoc.exists()) {
-                    setLicense(userDoc.data().license);
-                } else {
-                    throw new Error('User document not found in Firestore');
-                }
+                if (userDoc.exists()) setLicense(userDoc.data().license);
+                else throw new Error('User document not found in Firestore');
 
                 let fetchedClientId;
                 let userData;
@@ -251,9 +242,7 @@ export const AppProvider = ({ children }) => {
                         console.error('Error fetching personality traits:', error);
                         setPersonalityTraits([]);
                     }
-                } else {
-                    setPersonalityTraits([]);
-                }
+                } else setPersonalityTraits([]);
 
                 setIsAuthenticated(true);
             } catch (err) {
@@ -262,24 +251,19 @@ export const AppProvider = ({ children }) => {
                 setIsAuthenticated(false);
                 await signOut(auth);
             }
-            setLoading(false); 
+            setLoading(false);
         });
 
         return () => unsubscribe();
     }, []);
 
-    // Métodos para actualizar los diferentes porcentajes y valores
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
-
         try {
             const amount = -5;
             const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                foodPercentage: updatedData.foodPercentage,
-            }));
-            await forceSync(); // Forzar sincronización después de la actualización
+            setGlobalData(prev => ({ ...prev, foodPercentage: updatedData.foodPercentage }));
+            await forceSync();
         } catch (error) {
             console.error("Error decreasing food percentage on gameplay:", error);
             throw error;
@@ -288,13 +272,9 @@ export const AppProvider = ({ children }) => {
 
     const incrementGamePercentage = async (amount) => {
         if (!user || !clientId) return;
-
         try {
             const updatedData = await globalDataService.updateGamePercentage(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                gamePercentage: updatedData.gamePercentage,
-            }));
+            setGlobalData(prev => ({ ...prev, gamePercentage: updatedData.gamePercentage }));
             await forceSync();
             return updatedData;
         } catch (error) {
@@ -305,13 +285,9 @@ export const AppProvider = ({ children }) => {
 
     const updateFoodPercentage = async (amount) => {
         if (!user || !clientId) return;
-
         try {
             const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                foodPercentage: updatedData.foodPercentage,
-            }));
+            setGlobalData(prev => ({ ...prev, foodPercentage: updatedData.foodPercentage }));
             await forceSync();
             return updatedData;
         } catch (error) {
@@ -322,13 +298,9 @@ export const AppProvider = ({ children }) => {
 
     const updateSleepPercentage = async (amount) => {
         if (!user || !clientId) return;
-
         try {
             const updatedData = await globalDataService.updateSleepPercentage(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                sleepPercentage: updatedData.sleepPercentage,
-            }));
+            setGlobalData(prev => ({ ...prev, sleepPercentage: updatedData.sleepPercentage }));
             await forceSync();
             return updatedData;
         } catch (error) {
@@ -339,13 +311,9 @@ export const AppProvider = ({ children }) => {
 
     const updateCoins = async (amount) => {
         if (!user || !clientId) return;
-
         try {
             const updatedData = await globalDataService.updateCoins(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                coins: updatedData.coins,
-            }));
+            setGlobalData(prev => ({ ...prev, coins: updatedData.coins }));
             await forceSync();
             return updatedData;
         } catch (error) {
@@ -356,13 +324,9 @@ export const AppProvider = ({ children }) => {
 
     const updateTrophies = async (amount) => {
         if (!user || !clientId) return;
-
         try {
             const updatedData = await globalDataService.updateTrophies(amount, clientId);
-            setGlobalData(prev => ({
-                ...prev,
-                trophies: updatedData.trophies,
-            }));
+            setGlobalData(prev => ({ ...prev, trophies: updatedData.trophies }));
             await forceSync();
             return updatedData;
         } catch (error) {
@@ -373,7 +337,6 @@ export const AppProvider = ({ children }) => {
 
     const refreshUserData = async () => {
         if (!user || !clientId) return;
-
         try {
             const { clientId: fetchedClientId, data: userData } = await globalDataService.getUserData(user.uid, setClientId);
             setGlobalData(userData);
@@ -386,7 +349,6 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // Objeto value para el contexto
     const value = {
         socket,
         socketReady,
@@ -414,9 +376,5 @@ export const AppProvider = ({ children }) => {
         setAlert,
     };
 
-    return (
-        <AppContext.Provider value={value}>
-            {children}
-        </AppContext.Provider>
-    );
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

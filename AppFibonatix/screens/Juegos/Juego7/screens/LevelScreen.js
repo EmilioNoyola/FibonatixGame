@@ -1,179 +1,85 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  Image, 
-  StyleSheet, 
-  Pressable, 
-  ScrollView, 
-  Dimensions,
-  BackHandler,
-  StatusBar
-} from "react-native";
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Pressable, ScrollView, Dimensions, BackHandler } from "react-native";
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { RFPercentage } from 'react-native-responsive-fontsize';
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { foods, levels } from "./levelData";
-import CustomAlert from "../../../../assets/components/CustomAlert";
+import CustomAlert from '../../../../assets/components/CustomAlert';
 import { useAppContext } from "../../../../assets/context/AppContext";
 import { gameService } from "../../../../assets/services/ApiService";
+import { foods, levels } from "./levelData";
+import useCustomFonts from "../../../../assets/components/FontsConfigure";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const scale = width / 414;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#C0F8BC",
-  },
-  topBar: {
-    backgroundColor: '#90F0A5',
-    borderRadius: 30 * scale,
-    alignItems: 'center',
-    paddingVertical: 10 * scale,
-    marginHorizontal: 15 * scale,
-  },
-  topControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    gap: 15 * scale,
-  },
-  titleText: {
-    fontSize: RFPercentage(3.5),
-    color: '#2FBB2F',
-    marginBottom: 10 * scale,
-    fontFamily: 'Quicksand'
-  },
-  levelContainer: {
-    backgroundColor: '#2FBB2F',
-    width: 90 * scale,
-    height: 46 * scale,
-    borderRadius: 90 * scale,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  levelText: {
-    fontSize: RFPercentage(2.5),
-    color: '#C3F1C0',
-    textAlign: 'center',
-    fontFamily: 'Quicksand',
-  },
-  roundContainer: {
-    alignItems: 'center',
-    marginVertical: 10 * scale,
-  },
-  roundText: {
-    fontSize: RFPercentage(3),
-    fontFamily: 'Quicksand',
-    marginBottom: 10 * scale,
-    color: "#000000",
-    textAlign: 'center',
-  },
-  title: {
-    fontSize: RFPercentage(2.8),
-    fontFamily: 'Quicksand',
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    backgroundColor: "#90F0A5",
-    borderRadius: 20 * scale,
-    marginHorizontal: 15 * scale,
-    padding: 5 * scale,
-  },
-  item: {
-    alignItems: "center",
-    margin: 6 * scale,
-    borderWidth: 2 * scale,
-    backgroundColor: "#FFF",
-    borderColor: "#098223",
-    borderRadius: 10 * scale,
-    width: 100 * scale,
-    height: 95 * scale,
-    justifyContent: "center",
-  },
-  image: {
-    width: 70 * scale,
-    height: 70 * scale,
-  },
-  buttonContainer: {
-    alignItems: 'center',
-    marginVertical: 10 * scale,
-  },
-  button: {
-    padding: 10 * scale,
-    backgroundColor: "#187918",
-    borderRadius: 10 * scale,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '50%',
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: RFPercentage(2.8),
-    fontFamily: 'Quicksand',
-  },
-  cajaPuntajes: {
-    flexDirection: "row",
-    marginVertical: 5 * scale,
-    backgroundColor: "#C3F1C0",
-    borderRadius: 30 * scale,
-    paddingHorizontal: 10 * scale,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 5 * scale,
-  },
-  puntajeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 8 * scale,
-  },
-  icon: {
-    marginRight: 5 * scale,
-  },
-  score: {
-    fontSize: RFPercentage(2.5),
-    color: "#2FBB2F",
-    fontFamily: "Quicksand",
-  },
-});
-
 export default function LevelScreen({ route, navigation }) {
-  const { clientId, 
-    incrementGamePercentage, 
-    updateTrophies, 
-    decreaseFoodPercentageOnGamePlay,
-    refreshUserData
-  } = useAppContext();
-  
   const { levelId } = route.params;
   const levelData = levels.find(level => level.id === levelId);
+  const { clientId, incrementGamePercentage, updateTrophies, updateCoins, decreaseFoodPercentageOnGamePlay, refreshUserData } = useAppContext();
   const [selected, setSelected] = useState([]);
   const [round, setRound] = useState(0);
   const [displayedFoods, setDisplayedFoods] = useState([]);
   const [feedback, setFeedback] = useState({});
   const [timePlayed, setTimePlayed] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
-  const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(null);
+  const [bestTime, setBestTime] = useState(null);
   const [alerts, setAlerts] = useState({ type: null, visible: false });
   const [coinsEarned, setCoinsEarned] = useState(0);
   const [isNewLevel, setIsNewLevel] = useState(false);
-  const [exitAttempt, setExitAttempt] = useState(false);
-  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [correctAttempts, setCorrectAttempts] = useState(0);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [operationTimes, setOperationTimes] = useState([]);
+  const [startTime, setStartTime] = useState(null);
 
-  const currentRound = levelData.rounds[round];
-  
   const showAlert = (type) => setAlerts({ type, visible: true });
   const hideAlert = () => setAlerts({ ...alerts, visible: false });
 
-  // Temporizador
+  const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+  if (!fontsLoaded) return null;
+
+  const getRandomFoods = () => {
+    const levelFoods = foods[levelData.foodsKey];
+    const shuffledFoods = [...levelFoods].sort(() => 0.5 - Math.random());
+    const requiredType = currentRound.type;
+    const filterCondition = currentRound.filter;
+
+    let correctFoods = shuffledFoods;
+    if (requiredType) {
+      correctFoods = correctFoods.filter(food =>
+        Array.isArray(requiredType) ? requiredType.includes(food.type) : food.type === requiredType
+      );
+    }
+
+    if (filterCondition) {
+      correctFoods = correctFoods.filter(filterCondition);
+    }
+
+    let atLeastTwo = correctFoods.slice(0, 2);
+    if (atLeastTwo.length < 2) {
+      const remainingCorrectFoods = shuffledFoods.filter(food => !atLeastTwo.includes(food))
+        .filter(food => 
+          (requiredType ? (Array.isArray(requiredType) ? requiredType.includes(food.type) : food.type === requiredType) : true) &&
+          (!filterCondition || filterCondition(food))
+        ).slice(0, 2 - atLeastTwo.length);
+      atLeastTwo = [...atLeastTwo, ...remainingCorrectFoods];
+    }
+
+    const incorrectFoods = shuffledFoods.filter(food => {
+      const typeMatch = requiredType ? 
+        (Array.isArray(requiredType) ? !requiredType.includes(food.type) : food.type !== requiredType) : 
+        true;
+      const filterMatch = filterCondition ? !filterCondition(food) : true;
+      return (typeMatch || filterMatch) && !atLeastTwo.includes(food);
+    }).slice(0, levelData.itemsPerRound - atLeastTwo.length);
+
+    return [...atLeastTwo, ...incorrectFoods].sort(() => 0.5 - Math.random());
+  };
+
+  useEffect(() => {
+    setDisplayedFoods(getRandomFoods());
+  }, [round]);
+
   useEffect(() => {
     let interval;
     if (timerActive) {
@@ -184,41 +90,25 @@ export default function LevelScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [timerActive]);
 
-  // Iniciar partida: decrementar food percentage y comenzar temporizador
-  const startGame = async () => {
-    try {
-      if (!clientId) {
-        throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
-      }
-      await decreaseFoodPercentageOnGamePlay();
-      setTimerActive(true);
-      setIsGameStarted(true);
-      if (levelId === 1) {
-        await AsyncStorage.setItem("hasPlayedBefore", "true");
-      }
-    } catch (error) {
-      console.error("Error al iniciar partida:", error.message);
-      showAlert("Error");
-    }
-  };
-
-  // Cargar mejor puntaje
   useEffect(() => {
-    const loadBestScore = async () => {
+    const loadData = async () => {
       try {
-        const savedBestScore = await AsyncStorage.getItem(`bestScoreLevel${levelId}`);
-        if (savedBestScore !== null) {
-          setBestScore(parseInt(savedBestScore));
+        if (!clientId) {
+          return;
+        }
+        const savedBestTime = await AsyncStorage.getItem(`bestTime_level_${levelId}`);
+        if (savedBestTime !== null) {
+          setBestTime(parseInt(savedBestTime));
         }
       } catch (error) {
-        console.error("Error al cargar mejor puntaje:", error);
+        console.error("Error al cargar datos:", error.message);
       }
     };
-    loadBestScore();
+    loadData();
 
     const checkFirstTimePlaying = async () => {
       if (levelId === 1) {
-        const hasPlayed = await AsyncStorage.getItem("hasPlayedBefore");
+        const hasPlayed = await AsyncStorage.getItem("hasPlayedBuscaBefore");
         if (!hasPlayed) {
           showAlert("startGame");
         } else {
@@ -229,74 +119,97 @@ export default function LevelScreen({ route, navigation }) {
       }
     };
     checkFirstTimePlaying();
-  }, [levelId]);
+  }, [levelId, clientId]);
 
-  const getRandomFoods = () => {
-    const levelFoods = foods[levelData.foodsKey];
-    const shuffledFoods = [...levelFoods].sort(() => 0.5 - Math.random());
-    const requiredType = currentRound.type;
-    const filterCondition = currentRound.filter;
-  
-    // Filtra alimentos correctos basados en tipo y/o condición de filtro
-    let correctFoods = shuffledFoods;
-    
-    if (requiredType) {
-      correctFoods = correctFoods.filter(food =>
-        Array.isArray(requiredType) ? requiredType.includes(food.type) : food.type === requiredType
-      );
+  const startGame = async () => {
+    try {
+      if (!clientId) {
+        throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
+      }
+      await decreaseFoodPercentageOnGamePlay();
+      setTimerActive(true);
+      if (levelId === 1) {
+        await AsyncStorage.setItem("hasPlayedBuscaBefore", "true");
+      }
+    } catch (error) {
+      console.error("Error al iniciar partida:", error.message);
+      showAlert("Error");
     }
-  
-    if (filterCondition) {
-      correctFoods = correctFoods.filter(filterCondition);
-    }
-  
-    // Asegúrate de que haya al menos 2 alimentos correctos
-    let atLeastTwo = correctFoods.slice(0, 2);
-    if (atLeastTwo.length < 2) {
-      console.warn("No hay suficientes alimentos que cumplan los criterios");
-      const remainingCorrectFoods = shuffledFoods.filter(food => !atLeastTwo.includes(food))
-        .filter(food => 
-          (requiredType ? (Array.isArray(requiredType) ? requiredType.includes(food.type) : food.type === requiredType) : true) &&
-          (!filterCondition || filterCondition(food))
-        ).slice(0, 2 - atLeastTwo.length);
-        
-      atLeastTwo = [...atLeastTwo, ...remainingCorrectFoods];
-    }
-  
-    // Completa con alimentos incorrectos
-    const incorrectFoods = shuffledFoods.filter(food => {
-      const typeMatch = requiredType ? 
-        (Array.isArray(requiredType) ? !requiredType.includes(food.type) : food.type !== requiredType) : 
-        true;
-      const filterMatch = filterCondition ? !filterCondition(food) : true;
-      return (typeMatch || filterMatch) && !atLeastTwo.includes(food);
-    }).slice(0, levelData.itemsPerRound - atLeastTwo.length);
-  
-    // Mezcla alimentos correctos e incorrectos
-    const finalFoods = [...atLeastTwo, ...incorrectFoods].sort(() => 0.5 - Math.random());
-  
-    return finalFoods;
   };
-  
-  useEffect(() => {
-    setDisplayedFoods(getRandomFoods());
-  }, [round, levelId]);
+
+  const currentRound = levelData.rounds[round];
 
   const handleSelect = (id) => {
     if (selected.includes(id)) {
       setSelected(selected.filter((item) => item !== id));
     } else {
       setSelected([...selected, id]);
-      setScore(score + 1);
     }
     setFeedback({});
   };
 
-  // Obtener datos del juego desde la base de datos
+  const checkSelection = () => {
+    let newFeedback = {};
+    const correctSelections = displayedFoods
+      .filter(food => {
+        const typeMatch = currentRound.type ? 
+          (Array.isArray(currentRound.type) ? currentRound.type.includes(food.type) : food.type === currentRound.type) : 
+          true;
+        const filterMatch = currentRound.filter ? currentRound.filter(food) : true;
+        return typeMatch && filterMatch;
+      })
+      .map(food => food.id);
+
+    selected.forEach(id => {
+      newFeedback[id] = correctSelections.includes(id) ? "green" : "red";
+    });
+
+    setFeedback(newFeedback);
+
+    const allCorrect = selected.every(id => correctSelections.includes(id)) && selected.length === correctSelections.length;
+    const endTime = Date.now();
+    const timeTaken = startTime ? (endTime - startTime) / 1000 : 0;
+
+    if (allCorrect) {
+      setCorrectAttempts(correctAttempts + 1);
+      setOperationTimes([...operationTimes, timeTaken]);
+      setTimeout(() => {
+        if (round < levelData.rounds.length - 1) {
+          nextRound();
+        } else {
+          setTimerActive(false);
+          saveBestTime(timePlayed);
+          updateGameData();
+          showAlert("Correcto");
+        }
+      }, 1000);
+    } else {
+      setWrongAttempts(wrongAttempts + 1);
+      setOperationTimes([...operationTimes, timeTaken]);
+      setTimeout(() => {
+        setSelected([]);
+        setFeedback({});
+      }, 1000);
+    }
+    setStartTime(Date.now());
+  };
+
+  const saveBestTime = async (time) => {
+    try {
+      const storedBestTime = await AsyncStorage.getItem(`bestTime_level_${levelId}`);
+      if (!storedBestTime || time < parseInt(storedBestTime, 10)) {
+        await AsyncStorage.setItem(`bestTime_level_${levelId}`, time.toString());
+        setBestTime(time);
+      }
+    } catch (error) {
+      console.error('Error guardando el mejor tiempo:', error);
+    }
+  };
+
   const getGameData = async () => {
     try {
       const games = await gameService.getGames();
-      const game = games.find(g => g.game_ID === 4); // Tortuga Alimenticia
+      const game = games.find(g => g.game_ID === 4);
       if (!game) {
         throw new Error("Juego no encontrado en la base de datos");
       }
@@ -311,7 +224,6 @@ export default function LevelScreen({ route, navigation }) {
     }
   };
 
-  // Actualizar datos en la base de datos al completar un nivel
   const updateGameData = async () => {
     try {
       setTimerActive(false);
@@ -320,28 +232,25 @@ export default function LevelScreen({ route, navigation }) {
         throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
       }
 
-      // Obtener el progreso actual para acumular valores
       const gameProgress = await gameService.getGameProgress(clientId);
-      const tortugaProgress = gameProgress.find(game => game.game_ID === 4);
+      const buscaProgress = gameProgress.find(game => game.game_ID === 4);
 
-      const previousPlayedCount = tortugaProgress ? tortugaProgress.game_played_count || 0 : 0;
-      const previousTimePlayed = tortugaProgress ? tortugaProgress.game_time_played || 0 : 0;
-      const previousLevels = tortugaProgress ? tortugaProgress.game_levels || 0 : 0;
+      const previousPlayedCount = buscaProgress ? buscaProgress.game_played_count || 0 : 0;
+      const previousTimePlayed = buscaProgress ? buscaProgress.game_time_played || 0 : 0;
+      const previousLevels = buscaProgress ? buscaProgress.game_levels || 0 : 0;
 
-      // Determinar si este nivel es nuevo (para los trofeos)
       const isNewLevelLocal = previousLevels < levelId;
       setIsNewLevel(isNewLevelLocal);
 
-      // Obtener datos del juego
       const { gamePercentage, coinsEarned: coins, trophiesEarned } = await getGameData();
       setCoinsEarned(coins);
 
-      // Validar que todos los valores sean definidos
       if (coins === undefined || trophiesEarned === undefined) {
         throw new Error("Datos del juego incompletos: coins o trophiesEarned no están definidos.");
       }
 
-      // Actualizar Game_Progress
+      const avgTime = operationTimes.length > 0 ? operationTimes.reduce((a, b) => a + b) / operationTimes.length : 0;
+
       const gameData = {
         game_ID: 4,
         game_played_count: previousPlayedCount + 1,
@@ -350,87 +259,27 @@ export default function LevelScreen({ route, navigation }) {
         coins_earned: coins,
         trophies_earned: isNewLevelLocal ? trophiesEarned : 0,
       };
-      
       await gameService.updateGameProgress(gameData, clientId);
 
-      // Actualizar Global_Data
       await incrementGamePercentage(gamePercentage);
+      await updateCoins(coins);
       if (isNewLevelLocal) {
         await updateTrophies(trophiesEarned);
+      }
+
+      if (buscaProgress && buscaProgress.game_progress_ID) {
+        await gameService.updateGamePerformance(
+          buscaProgress.game_progress_ID,
+          correctAttempts,
+          wrongAttempts,
+          avgTime
+        );
       }
 
       await refreshUserData();
     } catch (error) {
       console.error("Error al actualizar datos del juego:", error.message);
-      console.error("Detalles del error:", error.response ? error.response.data : error);
       showAlert("Error");
-    }
-  };
-
-  const checkSelection = () => {
-    let newFeedback = {};
-    const correctSelections = displayedFoods
-      .filter(food => {
-        const typeMatch = currentRound.type ? 
-          (Array.isArray(currentRound.type) ? currentRound.type.includes(food.type) : food.type === currentRound.type) : 
-          true;
-        const filterMatch = currentRound.filter ? currentRound.filter(food) : true;
-        return typeMatch && filterMatch;
-      })
-      .map(food => food.id);
-  
-    selected.forEach(id => {
-      newFeedback[id] = correctSelections.includes(id) ? "green" : "red";
-    });
-  
-    setFeedback(newFeedback);
-  
-    const allCorrect = selected.every(id => correctSelections.includes(id)) && 
-                      selected.length === correctSelections.length;
-  
-    if (allCorrect) {
-      setTimeout(() => {
-        if (round < levelData.rounds.length - 1) {
-          nextRound();
-        } else {
-          // Nivel completado, desbloquear siguiente nivel
-          updateGameData();
-          unlockNextLevel();
-        }
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setSelected([]);
-        setFeedback({});
-      }, 1000);
-    }
-  };
-
-  const unlockNextLevel = async () => {
-    // Guardar mejor puntaje
-    if (bestScore === null || score < bestScore) {
-      await AsyncStorage.setItem(`bestScoreLevel${levelId}`, score.toString());
-      setBestScore(score);
-    }
-
-    if (levelData.nextLevel) {
-      try {
-        // Obtener niveles desbloqueados actuales
-        const levelsUnlocked = await gameService.getUnlockedLevels(clientId, 4);
-        const levelsArray = Array.from({ length: levelsUnlocked }, (_, i) => i + 1);
-        
-        if (!levelsArray.includes(levelData.nextLevel)) {
-          showAlert("Correcto");
-        } else {
-          showAlert("Felicidades");
-        }
-      } catch (error) {
-        console.error('Error al verificar niveles desbloqueados:', error);
-        showAlert("Correcto");
-      }
-    } else {
-      // Si es el último nivel
-      showAlert("Felicidades");
     }
   };
 
@@ -439,85 +288,56 @@ export default function LevelScreen({ route, navigation }) {
     setFeedback({});
     setRound(round + 1);
   };
-  
+
   const restartLevel = () => {
     setRound(0);
     setSelected([]);
     setFeedback({});
-    setScore(0);
     setDisplayedFoods(getRandomFoods());
+    setTimePlayed(0);
+    setTimerActive(true);
+    setCorrectAttempts(0);
+    setWrongAttempts(0);
+    setOperationTimes([]);
+    setStartTime(null);
   };
-
-  const handleBackPress = () => {
-    setExitAttempt(true);
-    showAlert("exit");
-    return true;
-  };
-
-  useEffect(() => {
-    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
-    return () => {
-      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
-    };
-  }, []);
 
   const mostrarTituloAlerta = (type) => {
     switch (type) {
-      case "startGame":
-        return "Tortuga Alimenticia";
-      case "exit":
-        return "SALIR";
-      case "Correcto":
-        return "¡Correcto!";
-      case "Felicidades":
-        return "¡Felicidades!";
-      case "Error":
-        return "Error!";
-      default:
-        return "Alerta";
+      case "startGame": return "TORTUGA ALIMENTICIA";
+      case "exit": return "SALIR";
+      case "Correcto": return "¡Correcto!";
+      case "Felicidades": return "¡Felicidades!";
+      case "Error": return "Error!";
+      default: return "Alerta";
     }
   };
 
   const mostrarMensajeAlerta = (type) => {
     switch (type) {
-      case "startGame":
-        return "Selecciona los alimentos que coincidan con la descripción de cada ronda.";
-      case "exit":
-        return "¿Quieres abandonar el juego?";
-      case "Correcto":
-        return `Has completado el nivel.\nRecompensas: ${coinsEarned} monedas${isNewLevel ? ", 1 trofeo" : ""}.`;
-      case "Felicidades":
-        return levelData.nextLevel 
-          ? `Has completado el nivel ${levelData.title}. ¡Puedes avanzar al siguiente nivel!` 
-          : "¡Has completado todos los niveles del juego!";
-      case "Error":
-        return "Hubo un error al procesar tu progreso. Intenta de nuevo más tarde.";
-      default:
-        return null;
+      case "startGame": return "Encuentra los elementos correctos en cada ronda.";
+      case "exit": return "¿Quieres abandonar el juego?";
+      case "Correcto": return `Has completado el nivel.\nRecompensas: ${coinsEarned} monedas${isNewLevel ? ", 1 trofeo" : ""}.`;
+      case "Felicidades": return "Has completado todos los niveles.";
+      case "Error": return "Hubo un error al procesar tu progreso.";
+      default: return null;
     }
   };
 
   const textoConfirmar = (type) => {
     switch (type) {
-      case "startGame":
-        return "JUGAR";
-      case "Felicidades":
-        return "Salir";
-      case "Correcto":
-        return levelData.nextLevel ? "Siguiente Nivel" : "Finalizar";
-      default:
-        return "Aceptar";
+      case "startGame": return "JUGAR";
+      case "Felicidades": return "Salir";
+      case "Correcto": return levelId < 4 ? "Siguiente Nivel" : "Finalizar";
+      default: return "Aceptar";
     }
   };
 
   const textoCancelar = (type) => {
     switch (type) {
-      case "Felicidades":
-        return "Niveles";
-      case "Correcto":
-        return "Salir";
-      default:
-        return "Cancelar";
+      case "Felicidades": return "Niveles";
+      case "Correcto": return "Salir";
+      default: return "Cancelar";
     }
   };
 
@@ -536,10 +356,10 @@ export default function LevelScreen({ route, navigation }) {
         hideAlert();
         break;
       case "Correcto":
-        if (levelData.nextLevel) {
-          navigation.replace("LevelScreen", { levelId: levelData.nextLevel });
+        if (levelId < 4) {
+          navigation.navigate("LevelScreen", { levelId: levelId + 1 });
         } else {
-          navigation.navigate("Levels");
+          showAlert("Felicidades");
         }
         hideAlert();
         break;
@@ -566,54 +386,60 @@ export default function LevelScreen({ route, navigation }) {
     hideAlert();
   };
 
+  const handleBackPress = () => {
+    showAlert("exit");
+    return true;
+  };
+
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+    };
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      
-      <View style={styles.topBar}>
-        <Text style={styles.titleText}>TORTUGA ALIMENTICIA</Text>
-        
-        <View style={styles.topControls}>
-          <Pressable style={styles.button} onPress={restartLevel}>
+    <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+      <View style={styles.header}>
+        <View style={styles.cajaTitulo}>
+          <Text style={styles.titulo}>Busca y Encuentra</Text>
+        </View>
+        <View style={styles.cajaIconos}>
+          <Pressable style={styles.button1} onPress={restartLevel}>
             {({ pressed }) => (
               <Ionicons
                 name="reload-circle"
-                size={40 * scale}
-                color={pressed ? '#1FAB1F' : '#2FBB2F'}
+                size={50 * scale}
+                color={pressed ? "#1F7023" : "#2FBB2F"}
               />
             )}
           </Pressable>
-          
-          <View style={styles.levelContainer}>
-            <Text style={styles.levelText}>NVL. {levelId}</Text>
+          <View style={styles.cajaNivel}>
+            <Text style={styles.Nivel}>NVL. {levelId}</Text>
           </View>
-          
-          <Pressable style={styles.button} onPress={() => showAlert("exit")}>
+          <Pressable style={styles.button1} onPress={() => showAlert("exit")}>
             {({ pressed }) => (
-              <MaterialCommunityIcons
+              <MaterialIcons
                 name="exit-to-app"
-                size={42 * scale}
-                color={pressed ? '#1FAB1F' : '#2FBB2F'}
+                size={47 * scale}
+                color={pressed ? "#1F7023" : "#2FBB2F"}
               />
             )}
           </Pressable>
         </View>
-        
         <View style={styles.cajaPuntajes}>
-          {bestScore !== null && (
+          {bestTime !== null && (
             <View style={styles.puntajeContainer}>
               <Ionicons name="trophy" size={30 * scale} color="#2FBB2F" style={styles.icon} />
-              <Text style={styles.score}>{bestScore}</Text>
+              <Text style={styles.score}>
+                {`${Math.floor(bestTime / 60).toString().padStart(2, '0')}:${(bestTime % 60).toString().padStart(2, '0')}`}
+              </Text>
             </View>
           )}
           <View style={styles.puntajeContainer}>
-            <MaterialCommunityIcons name="gesture-tap" size={30 * scale} color="#2FBB2F" style={styles.icon} />
-            <Text style={styles.score}>{score}</Text>
-          </View>
-          <View style={styles.puntajeContainer}>
-            <MaterialCommunityIcons name="timer" size={30 * scale} color="#2FBB2F" style={styles.icon} />
+            <MaterialIcons name="timer" size={30 * scale} color="#2FBB2F" style={styles.icon} />
             <Text style={styles.score}>
-              {Math.floor(timePlayed / 60)}:{(timePlayed % 60).toString().padStart(2, "0")}
+              {`${Math.floor(timePlayed / 60).toString().padStart(2, '0')}:${(timePlayed % 60).toString().padStart(2, '0')}`}
             </Text>
           </View>
         </View>
@@ -631,7 +457,7 @@ export default function LevelScreen({ route, navigation }) {
           bounces={false}
         >
           {displayedFoods.map((food) => (
-            <Pressable
+            <TouchableOpacity
               key={food.id}
               style={[ 
                 styles.item,
@@ -649,23 +475,16 @@ export default function LevelScreen({ route, navigation }) {
                 defaultSource={require('../../../../assets/img/tortuga.png')}
               />
               <Text style={styles.itemText}>{food.name}</Text>
-            </Pressable>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
       
       <View style={styles.buttonContainer}>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: pressed ? '#0E5A0E' : '#187918' }
-          ]} 
-          onPress={checkSelection}
-        >
+        <Pressable style={styles.button} onPress={checkSelection}>
           <Text style={styles.buttonText}>Verificar</Text>
         </Pressable>
       </View>
-
       {alerts.visible && (
         <CustomAlert
           showAlert={alerts.visible}
@@ -675,10 +494,170 @@ export default function LevelScreen({ route, navigation }) {
           onCancel={alerts.type === "startGame" ? null : handleCancelAlert}
           confirmText={textoConfirmar(alerts.type)}
           cancelText={textoCancelar(alerts.type)}
-          confirmButtonColor={"#2FBB2F"}
-          cancelButtonColor={"#C0F8BC"}
+          confirmButtonColor="#2FBB2F"
+          cancelButtonColor="#DDFFDA"
         />
       )}
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#C0F8BC",
+  },
+  header: {
+    backgroundColor: "#90F0A5",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 30 * scale,
+    marginHorizontal: 10 * scale,
+    paddingVertical: 10 * scale,
+  },
+  cajaTitulo: {
+    marginVertical: 5 * scale,
+  },
+  titulo: {
+    fontSize: RFPercentage(3.5),
+    color: "#2FBB2F",
+    fontFamily: "Quicksand",
+  },
+  cajaIconos: {
+    flexDirection: "row",
+    marginVertical: 5 * scale,
+  },
+  cajaNivel: {
+    borderRadius: 90 * scale,
+    backgroundColor: "#2FBB2F",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 46 * scale,
+    width: 90 * scale,
+  },
+  Nivel: {
+    fontSize: RFPercentage(2.5),
+    color: "#C3F1C0",
+    fontFamily: "Quicksand",
+  },
+  button1: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 12 * scale,
+  },
+  cajaPuntajes: {
+    flexDirection: "row",
+    marginVertical: 5 * scale,
+    backgroundColor: "#C3F1C0",
+    borderRadius: 30 * scale,
+    paddingHorizontal: 10 * scale,
+  },
+  puntajeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 8 * scale,
+  },
+  icon: {
+    marginRight: 5 * scale,
+  },
+  score: {
+    fontSize: RFPercentage(3),
+    color: "#2FBB2F",
+    fontFamily: "Quicksand",
+  },
+  topBar: {
+    backgroundColor: "#90F0A5",
+    borderRadius: 30,
+    alignItems: "center",
+    paddingVertical: 20,
+    marginHorizontal: 15,
+  },
+  topControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    gap: 15,
+  },
+  titleText: {
+    fontSize: RFPercentage(3),
+    color: "#2FBB2F",
+    marginBottom: 10,
+    fontFamily: "Quicksand",
+  },
+  levelContainer: {
+    backgroundColor: "#2FBB2F",
+    width: 90 * scale,
+    height: 46 * scale,
+    borderRadius: 90 * scale,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  levelText: {
+    fontSize: RFPercentage(2),
+    color: "#C3F1C0",
+    textAlign: "center",
+    fontFamily: "Quicksand",
+  },
+  roundContainer: {
+    alignItems: "center",
+    marginVertical: 10 * scale,
+  },
+  roundText: {
+    fontSize: RFPercentage(2.5),
+    fontFamily: "Quicksand_SemiBold",
+    marginBottom: 10 * scale,
+    color: "#000000",
+    textAlign: "center",
+  },
+  title: {
+    fontSize: RFPercentage(2),
+    fontFamily: "Quicksand_Medium",
+    textAlign: "center",
+  },
+  greenBackground: {
+    backgroundColor: "#90F0A5",
+    borderRadius: 20 * scale,
+    marginHorizontal: 10 * scale,
+    padding: 5 * scale,
+    flex: 1,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  item: {
+    alignItems: "center",
+    margin: 6 * scale,
+    borderWidth: 2 * scale,
+    backgroundColor: "#FFF",
+    borderColor: "#098223",
+    borderRadius: 10 * scale,
+    width: 100 * scale,
+    height: 95 * scale,
+    justifyContent: "center",
+  },
+  image: {
+    width: 70 * scale,
+    height: 70 * scale,
+  },
+  buttonContainer: {
+    alignItems: "center",
+    marginBottom: 10 * scale,
+  },
+  button: {
+    marginTop: 10 * scale,
+    padding: 10 * scale,
+    backgroundColor: "#187918",
+    borderRadius: 10 * scale,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "50%",
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: RFPercentage(2.5),
+    fontFamily: "Quicksand",
+  },
+});

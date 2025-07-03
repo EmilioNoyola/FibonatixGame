@@ -3,12 +3,112 @@ import { View, Text, Pressable, StyleSheet, ScrollView, StatusBar, Dimensions } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Fontisto from '@expo/vector-icons/Fontisto';
 import { RFPercentage } from 'react-native-responsive-fontsize';
+import useCustomFonts from '../../../../assets/components/FontsConfigure';
+import CustomAlert from '../../../../assets/components/CustomAlert';
 import { useAppContext } from '../../../../assets/context/AppContext';
 import { gameService } from '../../../../assets/services/ApiService';
-import CustomAlert from '../../../../assets/components/CustomAlert';
+import { levels } from './levelData';
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const scale = width / 414;
+
+function Levels({ navigation }) {
+  const { clientId } = useAppContext();
+  const [unlockedLevels, setUnlockedLevels] = useState([1]);
+  const [alerts, setAlerts] = useState({ type: null, visible: false });
+
+  const showAlert = (type) => setAlerts({ type, visible: true });
+  const hideAlert = () => setAlerts({ ...alerts, visible: false });
+
+  const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+  if (!fontsLoaded) return null;
+
+  const loadUnlockedLevels = async () => {
+    if (!clientId) return;
+    try {
+      const levelsUnlocked = await gameService.getUnlockedLevels(clientId, 4);
+      const levelsArray = Array.from({ length: levelsUnlocked }, (_, i) => i + 1);
+      setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
+    } catch (error) {
+      console.error("Error al cargar los niveles desbloqueados desde la base de datos:", error);
+      setUnlockedLevels([1]);
+    }
+  };
+
+  useEffect(() => {
+    loadUnlockedLevels();
+  }, [clientId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUnlockedLevels();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const renderLevels = () => {
+    return levels.map((level) => {
+      const isUnlocked = unlockedLevels.includes(level.id);
+
+      return (
+        <Pressable
+          key={level.id}
+          style={({ pressed }) => [
+            styles.levelButton,
+            !isUnlocked && styles.lockedButton,
+            {
+              backgroundColor: isUnlocked
+                ? pressed
+                  ? '#1FAB1F'
+                  : '#2FBB2F'
+                : '#DDFFDA',
+            },
+          ]}
+          onPress={() => {
+            if (isUnlocked) {
+              navigation.navigate('LevelScreen', { levelId: level.id });
+            } else {
+              showAlert("Nivel Bloqueado");
+            }
+          }}
+        >
+          <Text style={styles.levelButtonText}>
+            {isUnlocked ? level.title : <Fontisto name="locked" size={24 * scale} color="#2FBB2F" />}
+          </Text>
+        </Pressable>
+      );
+    });
+  };
+
+  return (
+    <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
+      <StatusBar backgroundColor="transparent" barStyle="dark-content" />
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Selección de Nivel</Text>
+      </View>
+      <View style={styles.greenBackground}>
+        <ScrollView
+          contentContainerStyle={styles.levelsContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {renderLevels()}
+        </ScrollView>
+      </View>
+      {alerts.visible && (
+        <CustomAlert
+          showAlert={alerts.visible}
+          title="Nivel Bloqueado"
+          message="Completa los niveles anteriores para desbloquear este nivel."
+          onConfirm={hideAlert}
+          confirmText="Aceptar"
+          confirmButtonColor="#2FBB2F"
+          cancelButtonColor="#DDFFDA"
+        />
+      )}
+    </SafeAreaView>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -63,136 +163,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#DDFFDA',
   },
 });
-
-function Levels({ navigation }) {
-  const { clientId } = useAppContext();
-  const [unlockedLevels, setUnlockedLevels] = useState([1]);
-  const [alerts, setAlerts] = useState({ type: null, visible: false });
-  const [loading, setLoading] = useState(true);
-
-  const showAlert = (type) => setAlerts({ type, visible: true });
-  const hideAlert = () => setAlerts({ ...alerts, visible: false });
-
-  // Cargar niveles desbloqueados desde la base de datos
-  const loadUnlockedLevels = async () => {
-    try {
-      if (!clientId) {
-        console.warn("No clientId available, skipping data load.");
-        setUnlockedLevels([1]);
-        return;
-      }
-
-      // Cargar niveles desbloqueados desde la base de datos
-      const levelsUnlocked = await gameService.getUnlockedLevels(clientId, 4); // gameID = 4 para Tortuga Alimenticia
-      const levelsArray = Array.from({ length: levelsUnlocked }, (_, i) => i + 1);
-      setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
-    } catch (error) {
-      console.error("Error al cargar niveles desbloqueados:", error);
-      setUnlockedLevels([1]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUnlockedLevels();
-  }, [clientId]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadUnlockedLevels();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const renderLevels = () => {
-    return [1, 2, 3, 4].map((levelId) => {
-      const isUnlocked = unlockedLevels.includes(levelId);
-      const levelData = {
-        1: { title: "Fácil" },
-        2: { title: "Intermedio" },
-        3: { title: "Difícil" },
-        4: { title: "Experto" }
-      }[levelId];
-
-      return (
-        <Pressable
-          key={levelId}
-          style={({ pressed }) => [
-            styles.levelButton,
-            !isUnlocked && styles.lockedButton,
-            {
-              backgroundColor: isUnlocked
-                ? pressed
-                  ? '#1FAB1F'
-                  : '#2FBB2F'
-                : '#DDFFDA',
-            },
-          ]}
-          onPress={() => {
-            if (isUnlocked) {
-              navigation.navigate('LevelScreen', { levelId });
-            } else {
-              showAlert("Nivel Bloqueado");
-            }
-          }}
-        >
-          <Text style={styles.levelButtonText}>
-            {isUnlocked ? levelData.title : <Fontisto name="locked" size={24 * scale} color="#2FBB2F" />}
-          </Text>
-        </Pressable>
-      );
-    });
-  };
-
-  const mostrarTituloAlerta = (type) => {
-    switch (type) {
-      case "Nivel Bloqueado":
-        return "Nivel Bloqueado";
-      default:
-        return "Alerta";
-    }
-  };
-
-  const mostrarMensajeAlerta = (type) => {
-    switch (type) {
-      case "Nivel Bloqueado":
-        return "Completa los niveles anteriores para desbloquear este nivel.";
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="transparent" barStyle="dark-content" />
-
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Selección de Nivel</Text>
-      </View>
-
-      <View style={styles.greenBackground}>
-        <ScrollView
-          contentContainerStyle={styles.levelsContainer}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          {renderLevels()}
-        </ScrollView>
-      </View>
-
-      {alerts.visible && (
-        <CustomAlert
-          showAlert={alerts.visible}
-          title={mostrarTituloAlerta(alerts.type)}
-          message={mostrarMensajeAlerta(alerts.type)}
-          onConfirm={hideAlert}
-          confirmText="Aceptar"
-          confirmButtonColor={"#2FBB2F"}
-        />
-      )}
-    </SafeAreaView>
-  );
-}
 
 export default Levels;

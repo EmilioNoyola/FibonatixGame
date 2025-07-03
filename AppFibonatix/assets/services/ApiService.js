@@ -159,43 +159,41 @@ export const gameService = {
             throw error;
         }
     },
+    updateGamePerformance: async (gameProgressId, correctAttempts, wrongAttempts, avgTime) => {
+        try {
+            console.log("Intentando actualizar Game_Performance:", { gameProgressId, correctAttempts, wrongAttempts, avgTime });
+            const response = await api.post('/api/updateGamePerformance', {
+                game_progress_ID: gameProgressId,
+                correct_attempts: correctAttempts,
+                wrong_attempts: wrongAttempts,
+                avg_time_per_operation: avgTime,
+            });
+            console.log("Respuesta de updateGamePerformance:", response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error updating game performance:', error.response ? error.response.data : error.message);
+            throw error;
+        }
+    },
+    getGamePerformance: async (gameProgressId) => {
+        try {
+            const response = await api.get(`/api/getGamePerformance/${gameProgressId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching game performance:', error);
+            throw error;
+        }
+    },
 };
 
 export const personalityService = {
     getPersonalityTraits: async (clientId) => {
         try {
-            console.log('Solicitando rasgos de personalidad para clientId:', clientId);
             const response = await api.get(`/api/users/${clientId}/personality`);
-            console.log('Respuesta de /api/users/.../personality:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error al obtener rasgos de personalidad:', error);
             throw error;
         }
     },
-};
-
-export const updateGamePerformance = async (gameProgressId, correctAttempts, wrongAttempts, avgTime) => {
-    try {
-        const response = await api.post('/api/updateGamePerformance', {
-        game_progress_ID: gameProgressId,
-        correct_attempts: correctAttempts,
-        wrong_attempts: wrongAttempts,
-        avg_time_per_operation: avgTime,
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error updating game performance:', error);
-        throw error;
-    }
-};
-
-export const getGamePerformance = async (gameProgressId) => {
-    try {
-        const response = await api.get(`/api/getGamePerformance/${gameProgressId}`);
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching game performance:', error);
-        throw error;
-    }
 };

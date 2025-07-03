@@ -182,68 +182,73 @@ export default function JuegoMemorama({ navigation, route }) {
   // Actualizar datos en la base de datos al completar un nivel
   const updateGameData = async () => {
     try {
-      setTimerActive(false);
+        setTimerActive(false);
 
-      if (!clientId) {
-        throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
-      }
+        if (!clientId) {
+            throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
+        }
 
-      const gameProgress = await gameService.getGameProgress(clientId);
-      const memoramaProgress = gameProgress.find(game => game.game_ID === 1);
+        const gameProgress = await gameService.getGameProgress(clientId);
+        const memoramaProgress = gameProgress.find(game => game.game_ID === 1);
+        console.log("Progreso de Memorama:", memoramaProgress);
 
-      const previousPlayedCount = memoramaProgress ? memoramaProgress.game_played_count || 0 : 0;
-      const previousTimePlayed = memoramaProgress ? memoramaProgress.game_time_played || 0 : 0;
-      const previousLevels = memoramaProgress ? memoramaProgress.game_levels || 0 : 0;
+        const previousPlayedCount = memoramaProgress ? memoramaProgress.game_played_count || 0 : 0;
+        const previousTimePlayed = memoramaProgress ? memoramaProgress.game_time_played || 0 : 0;
+        const previousLevels = memoramaProgress ? memoramaProgress.game_levels || 0 : 0;
 
-      const isNewLevelLocal = previousLevels < level;
-      setIsNewLevel(isNewLevelLocal);
+        const isNewLevelLocal = previousLevels < level;
+        setIsNewLevel(isNewLevelLocal);
 
-      const { gamePercentage, coinsEarned: coins, trophiesEarned } = await getGameData();
-      setCoinsEarned(coins);
+        const { gamePercentage, coinsEarned: coins, trophiesEarned } = await getGameData();
+        setCoinsEarned(coins);
 
-      if (coins === undefined || trophiesEarned === undefined) {
-        throw new Error("Datos del juego incompletos: coins o trophiesEarned no están definidos.");
-      }
+        if (coins === undefined || trophiesEarned === undefined) {
+            throw new Error("Datos del juego incompletos: coins o trophiesEarned no están definidos.");
+        }
 
-      // Calcular tiempo promedio por operación
-      const avgTime = operationTimes.length > 0 ? operationTimes.reduce((a, b) => a + b) / operationTimes.length : 0;
+        const avgTime = operationTimes.length > 0 ? operationTimes.reduce((a, b) => a + b) / operationTimes.length : 0;
 
-      // Actualizar Game_Progress
-      const gameData = {
-        game_ID: 1,
-        game_played_count: previousPlayedCount + 1,
-        game_levels: Math.max(previousLevels, level),
-        game_time_played: previousTimePlayed + timePlayed,
-        coins_earned: coins,
-        trophies_earned: isNewLevelLocal ? trophiesEarned : 0,
-      };
-      await gameService.updateGameProgress(gameData, clientId);
+        const gameData = {
+            game_ID: 1,
+            game_played_count: previousPlayedCount + 1,
+            game_levels: Math.max(previousLevels, level),
+            game_time_played: previousTimePlayed + timePlayed,
+            coins_earned: coins,
+            trophies_earned: isNewLevelLocal ? trophiesEarned : 0,
+        };
+        await gameService.updateGameProgress(gameData, clientId);
 
-      // Actualizar Global_Data
-      await incrementGamePercentage(gamePercentage);
-      if (isNewLevelLocal) {
-        await updateTrophies(trophiesEarned);
-      }
+        await incrementGamePercentage(gamePercentage);
+        if (isNewLevelLocal) {
+            await updateTrophies(trophiesEarned);
+        }
 
-      // Actualizar Game_Performance
-      if (memoramaProgress && memoramaProgress.game_progress_ID) {
-        await gameService.updateGamePerformance(
-          memoramaProgress.game_progress_ID,
-          correctAttempts,
-          wrongAttempts,
-          avgTime
-        );
-      }
+        if (memoramaProgress && memoramaProgress.game_progress_ID) {
+            console.log("Enviando a Game_Performance:", {
+                game_progress_ID: memoramaProgress.game_progress_ID,
+                correctAttempts,
+                wrongAttempts,
+                avgTime
+            });
+            await gameService.updateGamePerformance(
+                memoramaProgress.game_progress_ID,
+                correctAttempts,
+                wrongAttempts,
+                avgTime
+            );
+        } else {
+            console.log("No se encontró game_progress_ID válido para actualizar Game_Performance");
+        }
 
-      await refreshUserData();
+        await refreshUserData();
 
-      const newLevelsUnlocked = Math.max(previousLevels, level) + 1;
-      const levelsArray = Array.from({ length: newLevelsUnlocked }, (_, i) => i + 1);
-      setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
+        const newLevelsUnlocked = Math.max(previousLevels, level) + 1;
+        const levelsArray = Array.from({ length: newLevelsUnlocked }, (_, i) => i + 1);
+        setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
     } catch (error) {
-      console.error("Error al actualizar datos del juego:", error.message);
-      console.error("Detalles del error:", error.response ? error.response.data : error);
-      showAlert("Error");
+        console.error("Error al actualizar datos del juego:", error.message);
+        console.error("Detalles del error:", error.response ? error.response.data : error);
+        showAlert("Error");
     }
   };
 

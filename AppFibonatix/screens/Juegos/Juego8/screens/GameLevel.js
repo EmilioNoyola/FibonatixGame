@@ -1,241 +1,328 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Dimensions } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHandler } from "react-native";
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { RFPercentage } from "react-native-responsive-fontsize";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomAlert from "../../../../assets/components/CustomAlert";
+import { useAppContext } from "../../../../assets/context/AppContext";
+import { gameService } from "../../../../assets/services/ApiService";
+import { LEVEL_CONFIG } from "./levelConfig";
+import useCustomFonts from "../../../../assets/components/FontsConfigure";
 
-// Importar configuración de niveles
-import { LEVEL_CONFIG } from './levelConfig';
+const { width } = Dimensions.get("window");
+const scale = width / 414;
 
-const { width } = Dimensions.get('window');
-
-const GameLevel = () => {
-  const route = useRoute();
+function GameLevel({ route, navigation }) {
   const { levelNumber } = route.params;
   const levelConfig = LEVEL_CONFIG[levelNumber];
-  
+  const {
+    clientId,
+    incrementGamePercentage,
+    updateTrophies,
+    updateCoins,
+    decreaseFoodPercentageOnGamePlay,
+    refreshUserData,
+  } = useAppContext();
   const words = levelConfig.words;
   const gridSize = levelConfig.gridSize;
-  // Calcular cellSize basado en el gridSize específico del nivel
-  const cellSize = Math.floor((width - 40) / gridSize); // Ajuste de márgenes para mejor visualización
+  const cellSize = Math.floor((width - 40 * scale) / gridSize);
 
-  const navigation = useNavigation();
   const [wordGrid, setWordGrid] = useState([]);
   const [currentSelection, setCurrentSelection] = useState([]);
   const [wordsFound, setWordsFound] = useState([]);
   const [foundCells, setFoundCells] = useState([]);
+  const [timePlayed, setTimePlayed] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const [bestTime, setBestTime] = useState(null);
+  const [alerts, setAlerts] = useState({ type: null, visible: false });
+  const [coinsEarned, setCoinsEarned] = useState(0);
+  const [isNewLevel, setIsNewLevel] = useState(false);
+  const [correctAttempts, setCorrectAttempts] = useState(0);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [operationTimes, setOperationTimes] = useState([]);
+  const [startTime, setStartTime] = useState(null);
+
+  const showAlert = (type) => setAlerts({ type, visible: true });
+  const hideAlert = () => setAlerts({ ...alerts, visible: false });
+
+  const { fontsLoaded, onLayoutRootView } = useCustomFonts();
+  if (!fontsLoaded) return null;
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const savedBestTime = await AsyncStorage.getItem(`bestTime_level_${levelNumber}`);
+        if (savedBestTime !== null) {
+          setBestTime(parseInt(savedBestTime));
+        }
+      } catch (error) {
+        console.error("Error al cargar datos:", error.message);
+      }
+    };
+    loadData();
+
+    const checkFirstTimePlaying = async () => {
+      if (levelNumber === 1) {
+        const hasPlayed = await AsyncStorage.getItem("hasPlayedSopaBefore");
+        if (!hasPlayed) {
+          showAlert("startGame");
+        } else {
+          startGame();
+        }
+      } else {
+        startGame();
+      }
+    };
+    checkFirstTimePlaying();
+  }, [levelNumber, clientId]);
+
+  const startGame = async () => {
+    try {
+      if (!clientId) {
+        throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
+      }
+      await decreaseFoodPercentageOnGamePlay();
+      setTimerActive(true);
+      if (levelNumber === 1) {
+        await AsyncStorage.setItem("hasPlayedSopaBefore", "true");
+      }
+      startNewGame();
+    } catch (error) {
+      console.error("Error al iniciar partida:", error.message);
+      showAlert("Error");
+    }
+  };
+
+  const startNewGame = () => {
+    const newGrid = generateEmptyGrid(gridSize);
+    placeWordsInGrid(words, newGrid);
+    setWordGrid([...newGrid]);
+    setCurrentSelection([]);
+    setWordsFound([]);
+    setFoundCells([]);
+    setCorrectAttempts(0);
+    setWrongAttempts(0);
+    setOperationTimes([]);
+    setStartTime(Date.now());
+  };
+
+  const generateEmptyGrid = (size) => {
+    return Array(size).fill(null).map(() => Array(size).fill("_"));
+  };
+
+  const placeWordsInGrid = (words, grid) => {
+    words.forEach((word) => {
+      let placed = false;
+      let attempts = 0;
+      const maxAttempts = 100;
+      while (!placed && attempts < maxAttempts) {
+        attempts++;
+        const row = Math.floor(Math.random() * gridSize);
+        const col = Math.floor(Math.random() * gridSize);
+        const direction = Math.floor(Math.random() * 3);
+        if (canPlaceWordAt(word, grid, row, col, direction)) {
+          for (let i = 0; i < word.length; i++) {
+            if (direction === 0) grid[row][col + i] = word[i];
+            else if (direction === 1) grid[row + i][col] = word[i];
+            else if (direction === 2) grid[row + i][col + i] = word[i];
+          }
+          placed = true;
+        }
+      }
+      if (!placed) console.warn(`No se pudo colocar la palabra: ${word}`);
+    });
+    for (let i = 0; i < gridSize; i++)
+      for (let j = 0; j < gridSize; j++)
+        if (grid[i][j] === "_")
+          grid[i][j] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+  };
+
+  const canPlaceWordAt = (word, grid, row, col, direction) => {
+    if (direction === 0 && col + word.length > gridSize) return false;
+    if (direction === 1 && row + word.length > gridSize) return false;
+    if (direction === 2 && (row + word.length > gridSize || col + word.length > gridSize)) return false;
+    for (let i = 0; i < word.length; i++) {
+      if (direction === 0 && grid[row][col + i] !== "_") return false;
+      if (direction === 1 && grid[row + i][col] !== "_") return false;
+      if (direction === 2 && grid[row + i][col + i] !== "_") return false;
+    }
+    return true;
+  };
 
   useEffect(() => {
     startNewGame();
   }, []);
 
-  // Función para generar la cuadrícula vacía
-  const generateEmptyGrid = (size) => {
-    return Array(size).fill(null).map(() => Array(size).fill('_'));
-  };
-
-  // Función para iniciar el juego y generar la sopa de letras
-  const startNewGame = () => {
-    const newGrid = generateEmptyGrid(gridSize);
-    setWordGrid(newGrid);
-    setCurrentSelection([]);
-    setWordsFound([]);
-    setFoundCells([]);
-    placeWordsInGrid(words, newGrid);
-  };
-
-  // Función para colocar las palabras en la cuadrícula
-  const placeWordsInGrid = (words, grid) => {
-    words.forEach(word => {
-      let placed = false;
-      let attempts = 0;
-      const maxAttempts = 100; // Evitar bucles infinitos
-      
-      while (!placed && attempts < maxAttempts) {
-        attempts++;
-        const row = Math.floor(Math.random() * gridSize);
-        const col = Math.floor(Math.random() * gridSize);
-        const direction = Math.floor(Math.random() * 3); // 0: horizontal, 1: vertical, 2: diagonal
-        if (canPlaceWordAt(word, grid, row, col, direction)) {
-          for (let i = 0; i < word.length; i++) {
-            if (direction === 0) { // Horizontal
-              grid[row][col + i] = word[i];
-            } else if (direction === 1) { // Vertical
-              grid[row + i][col] = word[i];
-            } else if (direction === 2) { // Diagonal
-              grid[row + i][col + i] = word[i];
-            }
-          }
-          placed = true;
-        }
-      }
-      
-      // Si después de muchos intentos no se pudo colocar, simplemente continuamos
-      if (!placed) {
-        console.warn(`No se pudo colocar la palabra: ${word}`);
-      }
-    });
-
-    // Rellenar las celdas vacías con letras aleatorias
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        if (grid[i][j] === '_') {
-          grid[i][j] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-        }
-      }
+  useEffect(() => {
+    let interval;
+    if (timerActive) {
+      interval = setInterval(() => setTimePlayed((prev) => prev + 1), 1000);
     }
-    setWordGrid([...grid]);
-  };
-
-  // Función para verificar si la palabra se puede colocar en la cuadrícula
-  const canPlaceWordAt = (word, grid, row, col, direction) => {
-    if (direction === 0) { // Horizontal
-      if (col + word.length > gridSize) return false;
-      for (let i = 0; i < word.length; i++) {
-        if (grid[row][col + i] !== '_') return false;
-      }
-    } else if (direction === 1) { // Vertical
-      if (row + word.length > gridSize) return false;
-      for (let i = 0; i < word.length; i++) {
-        if (grid[row + i][col] !== '_') return false;
-      }
-    } else if (direction === 2) { // Diagonal
-      if (row + word.length > gridSize || col + word.length > gridSize) return false;
-      for (let i = 0; i < word.length; i++) {
-        if (grid[row + i][col + i] !== '_') return false;
-      }
-    }
-    return true;
-  };
+    return () => clearInterval(interval);
+  }, [timerActive]);
 
   const selectCell = (rowIndex, colIndex) => {
     const index = rowIndex * gridSize + colIndex;
-  
-    // Si la celda ya está seleccionada, quitarla de la selección
+    
+    // Si la celda ya está encontrada, no hacer nada
+    if (foundCells.includes(index)) return;
+
+    // Si es la primera selección o no hay selección actual
+    if (currentSelection.length === 0) {
+      setCurrentSelection([index]);
+      return;
+    }
+
+    // Verificar si la celda ya está seleccionada (para deseleccionar)
     if (currentSelection.includes(index)) {
       setCurrentSelection(currentSelection.filter(i => i !== index));
       return;
     }
-  
-    // Si la celda no está seleccionada, agregarla a la selección
-    const newSelection = [...currentSelection, index];
-    setCurrentSelection(newSelection);
-  
-    // Extraer las coordenadas de la selección actual
-    const selectedCoords = newSelection.map(idx => ({
-      row: Math.floor(idx / gridSize),
-      col: idx % gridSize
-    }));
-  
-    // Verificar si la selección forma una línea válida
-    if (!isSelectionInLine(selectedCoords)) {
-      setCurrentSelection([]); // Si no es una línea válida, deseleccionamos
+
+    // Obtener la última celda seleccionada
+    const lastIndex = currentSelection[currentSelection.length - 1];
+    const lastRow = Math.floor(lastIndex / gridSize);
+    const lastCol = lastIndex % gridSize;
+
+    // Verificar si la nueva celda es adyacente a la última seleccionada
+    const isAdjacent = 
+      (Math.abs(rowIndex - lastRow) <= 1 && Math.abs(colIndex - lastCol) <= 1) &&
+      !(rowIndex === lastRow && colIndex === lastCol);
+
+    if (!isAdjacent) {
+      // Verificar si la selección actual forma una palabra incorrecta antes de cambiar
+      if (currentSelection.length > 1) {
+        const currentCoords = currentSelection.map(idx => ({
+          row: Math.floor(idx / gridSize),
+          col: idx % gridSize,
+        }));
+        const currentWord = currentCoords.map(({row, col}) => wordGrid[row][col]).join('');
+        
+        // Si la palabra actual no está en la lista de palabras válidas y no ha sido encontrada
+        if (!words.includes(currentWord) && !wordsFound.some(w => w.word === currentWord)) {
+          setWrongAttempts(prev => prev + 1);
+        }
+      }
+      
+      // Si no es adyacente, empezar nueva selección con esta celda
+      setCurrentSelection([index]);
       return;
     }
-  
-    // Verificar si la celda seleccionada es adyacente a la última celda seleccionada
-    if (newSelection.length > 1) {
-      const lastIndex = currentSelection[currentSelection.length - 1];
-      const lastRow = Math.floor(lastIndex / gridSize);
-      const lastCol = lastIndex % gridSize;
-  
-      const isAdjacent =
-        (rowIndex === lastRow && Math.abs(colIndex - lastCol) === 1) || // Horizontal
-        (colIndex === lastCol && Math.abs(rowIndex - lastRow) === 1) || // Vertical
-        (Math.abs(rowIndex - lastRow) === 1 && Math.abs(colIndex - lastCol) === 1); // Diagonal
-  
-      if (!isAdjacent) {
-        setCurrentSelection([]); // Si no es adyacente, deseleccionamos
-        return;
+
+    // Verificar si la nueva selección mantiene la misma dirección
+    const newSelection = [...currentSelection, index];
+    const selectedCoords = newSelection.map(idx => ({
+      row: Math.floor(idx / gridSize),
+      col: idx % gridSize,
+    }));
+
+    if (!isSelectionInLine(selectedCoords)) {
+      // Verificar si la selección actual forma una palabra incorrecta antes de cambiar
+      if (currentSelection.length > 1) {
+        const currentCoords = currentSelection.map(idx => ({
+          row: Math.floor(idx / gridSize),
+          col: idx % gridSize,
+        }));
+        const currentWord = currentCoords.map(({row, col}) => wordGrid[row][col]).join('');
+        
+        // Si la palabra actual no está en la lista de palabras válidas y no ha sido encontrada
+        if (!words.includes(currentWord) && !wordsFound.some(w => w.word === currentWord)) {
+          setWrongAttempts(prev => prev + 1);
+        }
       }
+      
+      // Si rompe la línea, mantener solo la última selección
+      setCurrentSelection([index]);
+      return;
     }
-  
-    // Aquí ya no estamos verificando si la palabra está en la lista de palabras
-    const selectedWord = selectedCoords
-      .map(({ row, col }) => wordGrid[row][col])
-      .join('');
-  
-    // Si la selección forma una palabra válida
+
+    // Si pasa todas las validaciones, actualizar la selección
+    setCurrentSelection(newSelection);
+
+    // Verificar si forman una palabra
+    const selectedWord = selectedCoords.map(({row, col}) => wordGrid[row][col]).join('');
     if (words.includes(selectedWord) && !wordsFound.some(w => w.word === selectedWord)) {
       const randomColor = `hsl(${Math.floor(Math.random() * 360)}, 100%, 75%)`;
-  
-      setFoundCells(prevCells => [...prevCells, ...newSelection]);
-  
-      setWordsFound(prevWords => {
-        const updatedWords = [...prevWords, { word: selectedWord, color: randomColor }];
-  
+      const endTime = Date.now();
+      const timeTaken = startTime ? (endTime - startTime) / 1000 : 0;
+      
+      setCorrectAttempts(prev => prev + 1);
+      setOperationTimes([...operationTimes, timeTaken]);
+      setFoundCells(prev => [...prev, ...newSelection]);
+      setWordsFound(prev => {
+        const updatedWords = [...prev, {word: selectedWord, color: randomColor}];
         if (updatedWords.length === words.length) {
-          setTimeout(() => {
-            const nextLevel = levelNumber + 1;
-            const hasNextLevel = LEVEL_CONFIG[nextLevel] !== undefined;
-            
-            Alert.alert(
-              `¡Felicidades! Has completado el Nivel ${levelNumber}`,
-              "¿Qué deseas hacer ahora?",
-              [
-                { text: "Salir", onPress: () => navigation.navigate("Levels") },
-                hasNextLevel ? 
-                  { text: `Nivel ${nextLevel}`, onPress: () => navigation.navigate("GameLevel", { levelNumber: nextLevel }) } :
-                  { text: "Completado", style: 'cancel' }
-              ],
-              { cancelable: false }
-            );
-  
-            // Guardar progreso del nivel completado
-            AsyncStorage.setItem(`@level${levelNumber}_completed`, 'true')
-              .then(() => {
-                AsyncStorage.getItem('@unlocked_levels')
-                  .then(storedLevels => {
-                    let levels = storedLevels ? JSON.parse(storedLevels) : [levelNumber];
-                    if (hasNextLevel && !levels.includes(nextLevel)) {
-                      levels.push(nextLevel);
-                      AsyncStorage.setItem('@unlocked_levels', JSON.stringify(levels));
-                    }
-                  })
-                  .catch(error => console.error('Error al desbloquear el nivel:', error));
-              })
-              .catch(error => console.error('Error al guardar el progreso:', error));
-          }, 1000);
+          setTimerActive(false);
+          saveBestTime(timePlayed);
+          updateGameData();
+          showAlert("Correcto");
         }
-  
         return updatedWords;
       });
-  
-      setCurrentSelection([]); // Reiniciar selección
+      setCurrentSelection([]);
+      setStartTime(Date.now());
     }
   };
-  
-  // Función para validar si la selección está en línea
-  const isSelectionInLine = (coords) => {
-    if (coords.length < 2) return true; // Si hay solo una letra, no se evalúa
 
-    const sameRow = coords.every(({ row }) => row === coords[0].row);
-    const sameCol = coords.every(({ col }) => col === coords[0].col);
-    const isDiagonal = coords.every(({ row, col }, i) => 
-      row - coords[0].row === col - coords[0].col || row - coords[0].row === (col - coords[0].col) * -1
-    );
-
-    return sameRow || sameCol || isDiagonal;
+  // Agregar esta función para manejar clics fuera de la selección actual
+  const handleWrongSelection = () => {
+    if (currentSelection.length > 1) {
+      const currentCoords = currentSelection.map(idx => ({
+        row: Math.floor(idx / gridSize),
+        col: idx % gridSize,
+      }));
+      const currentWord = currentCoords.map(({row, col}) => wordGrid[row][col]).join('');
+      
+      // Si la palabra actual no está en la lista de palabras válidas y no ha sido encontrada
+      if (!words.includes(currentWord) && !wordsFound.some(w => w.word === currentWord)) {
+        setWrongAttempts(prev => prev + 1);
+      }
+    }
   };
-  
+
+  const isSelectionInLine = (coords) => {
+    if (coords.length < 2) return true;
+    
+    // Todas las filas iguales (horizontal)
+    const isHorizontal = coords.every(c => c.row === coords[0].row);
+    
+    // Todas las columnas iguales (vertical)
+    const isVertical = coords.every(c => c.col === coords[0].col);
+    
+    // Diagonal (pendiente 1 o -1)
+    const first = coords[0];
+    const second = coords[1];
+    const rowDiff = second.row - first.row;
+    const colDiff = second.col - first.col;
+    
+    // Solo considerar diagonales si la dirección es consistente
+    const isDiagonal = coords.every((c, i) => {
+      if (i === 0) return true;
+      const expectedRow = first.row + (i * rowDiff);
+      const expectedCol = first.col + (i * colDiff);
+      return c.row === expectedRow && c.col === expectedCol;
+    });
+
+    return isHorizontal || isVertical || isDiagonal;
+  };
+
   const getCellColor = (rowIndex, colIndex) => {
     const cellIndex = rowIndex * gridSize + colIndex;
     for (let foundWord of wordsFound) {
       if (foundCells.includes(cellIndex) && getWordCells(foundWord.word).includes(cellIndex)) {
-        return foundWord.color || "#FFD700"; // Usa el color asignado o amarillo por defecto 
+        return foundWord.color || "#FFD700";
       }
     }
-    return null;
+    return currentSelection.includes(cellIndex) ? "#F88787" : null;
   };
 
-  // Función para obtener las celdas que forman la palabra
   const getWordCells = (word) => {
     const wordCells = [];
     wordGrid.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
-        if (cell === word[0]) { // Comienza con la primera letra de la palabra
-          // Verificamos si la palabra está en esa posición
+        if (cell === word[0]) {
           let match = true;
           for (let i = 0; i < word.length; i++) {
             if (row[colIndex + i] !== word[i]) {
@@ -248,9 +335,8 @@ const GameLevel = () => {
               wordCells.push(rowIndex * gridSize + (colIndex + i));
             }
           }
-
           match = true;
-          for (let i = 0; i < word.length; i++) { // Vertical
+          for (let i = 0; i < word.length; i++) {
             if (rowIndex + i >= gridSize || wordGrid[rowIndex + i][colIndex] !== word[i]) {
               match = false;
               break;
@@ -261,10 +347,13 @@ const GameLevel = () => {
               wordCells.push((rowIndex + i) * gridSize + colIndex);
             }
           }
-
           match = true;
-          for (let i = 0; i < word.length; i++) { // Diagonal
-            if (rowIndex + i >= gridSize || colIndex + i >= gridSize || wordGrid[rowIndex + i][colIndex + i] !== word[i]) {
+          for (let i = 0; i < word.length; i++) {
+            if (
+              rowIndex + i >= gridSize ||
+              colIndex + i >= gridSize ||
+              wordGrid[rowIndex + i][colIndex + i] !== word[i]
+            ) {
               match = false;
               break;
             }
@@ -280,83 +369,277 @@ const GameLevel = () => {
     return wordCells;
   };
 
-  // Función para verificar si la celda está en una palabra encontrada
-  const isCellPartOfFoundWord = (rowIndex, colIndex) => {
-    const cellIndex = rowIndex * gridSize + colIndex;
-    return foundCells.includes(cellIndex);
-  };
-  
-  // Reiniciar el juego
   const handleResetGame = () => {
-    startNewGame();  // Llamada para reiniciar la sopa de letras
-    setWordsFound([]); // Reinicia las palabras encontradas
-    setFoundCells([]); // Reinicia las celdas encontradas
-    setCurrentSelection([]); // Reinicia la selección actual
-  };
-  
-  // Renderizar la cuadrícula según el tamaño
-  const renderGrid = () => {
-    return (
-      <ScrollView horizontal={true} contentContainerStyle={styles.scrollableGridContainer}>
-        <ScrollView contentContainerStyle={styles.scrollableGrid}>
-          <View style={styles.gridContainer}>
-            {wordGrid.map((row, rowIndex) => (
-              <View key={`row-${rowIndex}`} style={styles.gridRow}>
-                {row.map((cell, colIndex) => renderCell(rowIndex, colIndex, cell))}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </ScrollView>
-    );
+    startNewGame();
+    setTimePlayed(0);
+    setTimerActive(true);
+    setCorrectAttempts(0);
+    setWrongAttempts(0);
+    setOperationTimes([]);
+    setStartTime(null);
   };
 
-  // Renderizar una celda individual
-  const renderCell = (rowIndex, colIndex, cell) => (
-    <TouchableOpacity
-      key={`${rowIndex}-${colIndex}`}
-      style={[
-        styles.gridCell,
-        { width: cellSize, height: cellSize },
-        currentSelection.includes(rowIndex * gridSize + colIndex) && styles.selected,
-        isCellPartOfFoundWord(rowIndex, colIndex) && { backgroundColor: getCellColor(rowIndex, colIndex) },
-      ]}
-      onPress={() => selectCell(rowIndex, colIndex)}
-    >
-      <Text style={[styles.cellText, { fontSize: cellSize * 0.5 }]}>{cell}</Text>
-    </TouchableOpacity>
-  );
+  const saveBestTime = async (time) => {
+    try {
+      const storedBestTime = await AsyncStorage.getItem(`bestTime_level_${levelNumber}`);
+      if (!storedBestTime || time < parseInt(storedBestTime, 10)) {
+        await AsyncStorage.setItem(`bestTime_level_${levelNumber}`, time.toString());
+        setBestTime(time);
+      }
+    } catch (error) {
+      console.error("Error guardando el mejor tiempo:", error);
+    }
+  };
+
+  const getGameData = async () => {
+    try {
+      const games = await gameService.getGames();
+      const game = games.find((g) => g.game_ID === 5);
+      if (!game) throw new Error("Juego no encontrado en la base de datos");
+      return {
+        gamePercentage: game.game_percentage || 5,
+        coinsEarned: game.game_coins || 10,
+        trophiesEarned: game.game_trophy || 1,
+      };
+    } catch (error) {
+      console.error("Error al obtener datos del juego:", error.message);
+      return { gamePercentage: 5, coinsEarned: 10, trophiesEarned: 1 };
+    }
+  };
+
+  const updateGameData = async () => {
+    try {
+      setTimerActive(false);
+      if (!clientId) {
+        throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
+      }
+      const gameProgress = await gameService.getGameProgress(clientId);
+      const sopaProgress = gameProgress.find((game) => game.game_ID === 5);
+      const previousPlayedCount = sopaProgress ? sopaProgress.game_played_count || 0 : 0;
+      const previousTimePlayed = sopaProgress ? sopaProgress.game_time_played || 0 : 0;
+      const previousLevels = sopaProgress ? sopaProgress.game_levels || 0 : 0;
+      const isNewLevelLocal = previousLevels < levelNumber;
+      setIsNewLevel(isNewLevelLocal);
+      const { gamePercentage, coinsEarned: coins, trophiesEarned } = await getGameData();
+      setCoinsEarned(coins);
+      if (coins === undefined || trophiesEarned === undefined) {
+        throw new Error("Datos del juego incompletos: coins o trophiesEarned no están definidos.");
+      }
+      const avgTime =
+        operationTimes.length > 0 ? operationTimes.reduce((a, b) => a + b) / operationTimes.length : 0;
+      const gameData = {
+        game_ID: 5,
+        game_played_count: previousPlayedCount + 1,
+        game_levels: Math.max(previousLevels, levelNumber),
+        game_time_played: previousTimePlayed + timePlayed,
+        coins_earned: coins,
+        trophies_earned: isNewLevelLocal ? trophiesEarned : 0,
+      };
+      await gameService.updateGameProgress(gameData, clientId);
+      await incrementGamePercentage(gamePercentage);
+      await updateCoins(coins);
+      if (isNewLevelLocal) await updateTrophies(trophiesEarned);
+      if (sopaProgress && sopaProgress.game_progress_ID) {
+        await gameService.updateGamePerformance(
+          sopaProgress.game_progress_ID,
+          correctAttempts,
+          wrongAttempts,
+          avgTime
+        );
+      }
+      await refreshUserData();
+    } catch (error) {
+      console.error("Error al actualizar datos del juego:", error.message);
+      showAlert("Error");
+    }
+  };
+
+  const mostrarTituloAlerta = (type) => {
+    switch (type) {
+      case "startGame":
+        return "SOPA OPERATIVA";
+      case "exit":
+        return "SALIR";
+      case "Correcto":
+        return "¡Correcto!";
+      case "Felicidades":
+        return "¡Felicidades!";
+      case "Error":
+        return "Error!";
+      default:
+        return "Alerta";
+    }
+  };
+
+  const mostrarMensajeAlerta = (type) => {
+    switch (type) {
+      case "startGame":
+        return "Encuentra todas las palabras relacionadas con matemáticas.";
+      case "exit":
+        return "¿Quieres abandonar el juego?";
+      case "Correcto":
+        return `Has completado el nivel.\nRecompensas: ${coinsEarned} monedas${isNewLevel ? ", 1 trofeo" : ""}.`;
+      case "Felicidades":
+        return "Has completado todos los niveles.";
+      case "Error":
+        return "Hubo un error al procesar tu progreso.";
+      default:
+        return null;
+    }
+  };
+
+  const textoConfirmar = (type) => {
+    switch (type) {
+      case "startGame":
+        return "JUGAR";
+      case "Felicidades":
+        return "Salir";
+      case "Correcto":
+        return levelNumber < 12 ? "Siguiente Nivel" : "Finalizar";
+      default:
+        return "Aceptar";
+    }
+  };
+
+  const textoCancelar = (type) => {
+    switch (type) {
+      case "Felicidades":
+        return "Niveles";
+      case "Correcto":
+        return "Salir";
+      default:
+        return "Cancelar";
+    }
+  };
+
+  const handleConfirmAlert = async () => {
+    switch (alerts.type) {
+      case "startGame":
+        await startGame();
+        hideAlert();
+        break;
+      case "exit":
+        navigation.navigate("Levels");
+        hideAlert();
+        break;
+      case "Felicidades":
+        navigation.navigate("Levels");
+        hideAlert();
+        break;
+      case "Correcto":
+        if (levelNumber < 12) {
+          navigation.navigate("GameLevel", { levelNumber: levelNumber + 1 });
+        } else {
+          showAlert("Felicidades");
+        }
+        hideAlert();
+        break;
+      case "Error":
+        hideAlert();
+        break;
+      default:
+        hideAlert();
+        break;
+    }
+  };
+
+  const handleCancelAlert = () => {
+    switch (alerts.type) {
+      case "Felicidades":
+        navigation.navigate("Levels");
+        break;
+      case "Correcto":
+        navigation.navigate("Levels");
+        break;
+      default:
+        break;
+    }
+    hideAlert();
+  };
+
+  const handleBackPress = () => {
+    showAlert("exit");
+    return true;
+  };
+
+  useEffect(() => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackPress);
+    return () => BackHandler.removeEventListener("hardwareBackPress", handleBackPress);
+  }, []);
 
   return (
-    <SafeAreaView style={styles.gameContainer}>
-      <View style={styles.topBar}>
-        <Text style={styles.titleText}>{levelConfig.title}</Text>
-        <View style={styles.topControls}>
-          <TouchableOpacity style={styles.topButton} onPress={handleResetGame}>
-            <Ionicons name="reload-circle" size={50} color="#800020" />
-          </TouchableOpacity>
-  
-          <View style={styles.levelContainer}>
-            <Text style={styles.levelText}>NVL. {levelNumber}</Text>
+    <SafeAreaView style={styles.gameContainer} onLayout={onLayoutRootView}>
+      <View style={styles.header}>
+        <View style={styles.cajaTitulo}>
+          <Text style={styles.titulo}>
+            {wordsFound.length === words.length ? "¡Completado!" : "SOPA OPERATIVA"}
+          </Text>
+        </View>
+        <View style={styles.cajaIconos}>
+          <Pressable style={styles.button} onPress={handleResetGame}>
+            {({ pressed }) => (
+              <Ionicons
+                name="reload-circle"
+                size={50 * scale}
+                color={pressed ? "#630F11" : "#800020"}
+              />
+            )}
+          </Pressable>
+          <View style={styles.cajaNivel}>
+            <Text style={styles.Nivel}>NVL. {levelNumber}</Text>
           </View>
-  
-          <TouchableOpacity style={styles.topButton} onPress={() => navigation.navigate('Levels')}>
-            <MaterialCommunityIcons name="exit-to-app" size={52} color="#800020" />
-          </TouchableOpacity>
+          <Pressable style={styles.button} onPress={() => showAlert("exit")}>
+            {({ pressed }) => (
+              <MaterialCommunityIcons
+                name="exit-to-app"
+                size={52 * scale}
+                color={pressed ? "#630F11" : "#800020"}
+              />
+            )}
+          </Pressable>
+        </View>
+        <View style={styles.cajaPuntajes}>
+          {bestTime !== null && (
+            <View style={styles.puntajeContainer}>
+              <Ionicons name="trophy" size={30 * scale} color="#800020" style={styles.icon} />
+              <Text style={styles.score}>
+                {`${Math.floor(bestTime / 60).toString().padStart(2, "0")}:${(bestTime % 60)
+                  .toString()
+                  .padStart(2, "0")}`}
+              </Text>
+            </View>
+          )}
+          <View style={styles.puntajeContainer}>
+            <MaterialIcons name="timer" size={30 * scale} color="#800020" style={styles.icon} />
+            <Text style={styles.score}>
+              {`${Math.floor(timePlayed / 60).toString().padStart(2, "0")}:${(timePlayed % 60)
+                .toString()
+                .padStart(2, "0")}`}
+            </Text>
+          </View>
         </View>
       </View>
-  
       <Text style={styles.instructionsText}>{levelConfig.instruction}</Text>
-  
       <View style={styles.wordSearchContainer}>
-        {renderGrid()}
+        <ScrollView
+          horizontal={true}
+          contentContainerStyle={styles.scrollableGridContainer}
+        >
+          <ScrollView contentContainerStyle={styles.scrollableGrid}>
+            <View style={styles.gridContainer}>
+              {wordGrid.map((row, rowIndex) => (
+                <View key={`row-${rowIndex}`} style={styles.gridRow}>
+                  {row.map((cell, colIndex) => renderCell(rowIndex, colIndex, cell))}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </ScrollView>
       </View>
-  
       <View style={styles.wordsListContainer}>
         <View style={styles.wordsRow}>
           {words.map((word, index) => {
-            // Busca el color asociado a la palabra
-            const foundWord = wordsFound.find(w => w.word === word);
+            const foundWord = wordsFound.find((w) => w.word === word);
             return (
               <View
                 key={index}
@@ -368,108 +651,191 @@ const GameLevel = () => {
           })}
         </View>
       </View>
+      {alerts.visible && (
+        <CustomAlert
+          showAlert={alerts.visible}
+          title={mostrarTituloAlerta(alerts.type)}
+          message={mostrarMensajeAlerta(alerts.type)}
+          onConfirm={handleConfirmAlert}
+          onCancel={alerts.type === "startGame" ? null : handleCancelAlert}
+          confirmText={textoConfirmar(alerts.type)}
+          cancelText={textoCancelar(alerts.type)}
+          confirmButtonColor="#800020"
+          cancelButtonColor="#F998B5"
+        />
+      )}
     </SafeAreaView>
   );
-};
+
+  function renderCell(rowIndex, colIndex, cell) {
+    const isSelected = currentSelection.includes(rowIndex * gridSize + colIndex);
+    const isFound = isCellPartOfFoundWord(rowIndex, colIndex);
+    
+    return (
+      <TouchableOpacity
+        key={`${rowIndex}-${colIndex}`}
+        style={[
+          styles.gridCell,
+          { width: cellSize, height: cellSize },
+          isSelected && styles.selected,
+          isFound && { backgroundColor: getCellColor(rowIndex, colIndex) },
+          isFound && styles.foundCell,
+        ]}
+        onPress={() => selectCell(rowIndex, colIndex)}
+      >
+        <Text style={[
+          styles.cellText, 
+          { fontSize: cellSize * 0.5 },
+          isSelected && styles.selectedText,
+          isFound && styles.foundText,
+        ]}>
+          {cell}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  function isCellPartOfFoundWord(rowIndex, colIndex) {
+    const cellIndex = rowIndex * gridSize + colIndex;
+    return foundCells.includes(cellIndex);
+  }
+}
 
 const styles = StyleSheet.create({
   gameContainer: {
     flex: 1,
-    backgroundColor: '#F998B5',
+    backgroundColor: "#F998B5",
   },
-  topBar: {
-    backgroundColor: '#E56587',
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    marginHorizontal: 15,
+  header: {
+    backgroundColor: "#E56587",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 30 * scale,
+    marginHorizontal: 10 * scale,
+    paddingVertical: 10 * scale,
   },
-  topControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 15,
+  cajaTitulo: {
+    marginVertical: 5 * scale,
   },
-  titleText: {
-    fontSize: 24,
-    color: '#800020',
-    marginBottom: 10,
-    fontFamily: 'Quicksand'
+  titulo: {
+    fontSize: RFPercentage(3.5),
+    color: "#800020",
+    fontFamily: "Quicksand",
   },
-  levelContainer: {
-    backgroundColor: '#800020',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cajaIconos: {
+    flexDirection: "row",
+    marginVertical: 5 * scale,
   },
-  levelText: {
-    fontSize: 18,
-    color: '#F998B5',
-    textAlign: 'center',
-    fontFamily: 'Quicksand'
+  cajaNivel: {
+    borderRadius: 90 * scale,
+    backgroundColor: "#800020",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 46 * scale,
+    width: 90 * scale,
   },
-  wordSearchContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 10,
+  Nivel: {
+    fontSize: RFPercentage(2.5),
+    color: "#F998B5",
+    fontFamily: "Quicksand",
   },
-  scrollableGridContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  button: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 12 * scale,
   },
-  scrollableGrid: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  cajaPuntajes: {
+    flexDirection: "row",
+    marginVertical: 5 * scale,
+    backgroundColor: "#F0A1B8",
+    borderRadius: 30 * scale,
+    paddingHorizontal: 10 * scale,
   },
-  gridContainer: {
-    // No incluir width o height fijo aquí
+  puntajeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 8 * scale,
   },
-  gridRow: {
-    flexDirection: 'row', // Las celdas de una fila se alinean horizontalmente
+  icon: {
+    marginRight: 5 * scale,
   },
-  gridCell: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  cellText: {
-    fontWeight: 'bold',
-  },
-  selected: {
-    backgroundColor: '#F88787',
-  },
-  wordsListContainer: {
-    marginHorizontal: 15,
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#90172F',
-    borderRadius: 15,
-  },
-  wordItem: {
-    padding: 2,
-    margin: 5,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    textAlign: 'center',
-  },
-  wordsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  wordText: {
-    padding: 5,
+  score: {
+    fontSize: RFPercentage(3),
+    color: "#800020",
+    fontFamily: "Quicksand",
   },
   instructionsText: {
-    fontSize: 25,
-    textAlign: 'center',
-    color: '#CE3558',
-    paddingVertical: 20,
-    fontFamily: 'Quicksand_SemiBold',
+    fontSize: RFPercentage(2.5),
+    textAlign: "center",
+    color: "#CE3558",
+    paddingVertical: 20 * scale,
+    fontFamily: "Quicksand_SemiBold",
+  },
+  wordSearchContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 10 * scale,
+  },
+  scrollableGridContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollableGrid: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridContainer: {},
+  gridRow: {
+    flexDirection: "row",
+  },
+  gridCell: {
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1 * scale,
+    borderColor: "black",
+  },
+  cellText: {
+    fontWeight: "bold",
+  },
+  selected: {
+    backgroundColor: "#F88787",
+  },
+  wordsListContainer: {
+    marginHorizontal: 15 * scale,
+    marginTop: 20 * scale,
+    padding: 10 * scale,
+    backgroundColor: "#90172F",
+    borderRadius: 15 * scale,
+  },
+  wordItem: {
+    padding: 2 * scale,
+    margin: 5 * scale,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 4 * scale,
+    textAlign: "center",
+  },
+  wordsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  wordText: {
+    padding: 5 * scale,
+  },
+    selected: {
+    backgroundColor: '#F88787',
+    borderRadius: 5,
+  },
+  selectedText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  foundCell: {
+    borderRadius: 5,
+  },
+  foundText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });
 

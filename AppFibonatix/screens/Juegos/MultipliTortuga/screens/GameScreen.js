@@ -31,6 +31,7 @@ function GameScreen({ route, navigation }) {
   const [didWin, setDidWin] = useState(false);
   const [unlockedLevels, setUnlockedLevels] = useState([1]);
   const [previousGameProgress, setPreviousGameProgress] = useState(null);
+  const [wrongAttempts, setWrongAttempts] = useState(0); // Nuevo estado para rastrear intentos fallidos
 
   const navigation2 = useNavigation();
 
@@ -90,6 +91,7 @@ function GameScreen({ route, navigation }) {
       if (level === 1) {
         await AsyncStorage.setItem("hasPlayedMultipliBefore", "true");
       }
+      setWrongAttempts(0); // Reiniciar intentos fallidos al empezar
     } catch (error) {
       console.error("Error al iniciar partida:", error.message);
       showAlert("Error");
@@ -117,6 +119,7 @@ function GameScreen({ route, navigation }) {
     setTimer(0);
     setIsTimerRunning(false);
     setDidWin(false);
+    setWrongAttempts(0); // Reiniciar intentos fallidos al reiniciar
   };
 
   const reloadLevel = () => {
@@ -215,7 +218,7 @@ function GameScreen({ route, navigation }) {
     }
   };
 
-  const updateGameData = async () => {
+  const updateGameData = async (attemptCount, isWrong) => {
     try {
       setIsTimerRunning(false);
 
@@ -256,6 +259,20 @@ function GameScreen({ route, navigation }) {
         await updateTrophies(trophiesEarned);
       }
 
+      // Lógica para Game_Performance
+      if (multipliProgress && multipliProgress.game_progress_ID) {
+        const correctAttempts = isWrong === 0 ? attemptCount : 0; // Incrementa solo si es correcto
+        const totalWrongAttempts = isWrong === 1 ? wrongAttempts + 1 : wrongAttempts; // Actualiza si es incorrecto
+        const avgTime = timer > 0 ? timer / (correctAttempts + totalWrongAttempts || 1) : 0; // Tiempo promedio ajustado
+
+        await gameService.updateGamePerformance(
+          multipliProgress.game_progress_ID,
+          correctAttempts,
+          totalWrongAttempts,
+          avgTime
+        );
+      }
+
       const agilIncrease = timer < 20 ? 5 : 2;
       const tenazIncrease = 3;
 
@@ -272,12 +289,15 @@ function GameScreen({ route, navigation }) {
 
   const checkOrder = () => {
     const correctOrder = Array.from({ length: 10 }, (_, i) => (i + 1) * level);
+    const attemptCount = 1; // Cada verificación cuenta como un intento
     if (JSON.stringify(placedCards) === JSON.stringify(correctOrder)) {
       setDidWin(true);
       saveBestTime(timer);
-      updateGameData();
+      updateGameData(attemptCount, 0); // Pasa attemptCount y 0 wrongAttempts
       showAlert('Correcto');
     } else {
+      setWrongAttempts(wrongAttempts + 1); // Incrementa intentos fallidos
+      updateGameData(attemptCount, 1); // Pasa attemptCount y 1 wrongAttempt
       showAlert('Error');
     }
   };

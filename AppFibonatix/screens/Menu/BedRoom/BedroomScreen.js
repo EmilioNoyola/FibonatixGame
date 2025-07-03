@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 
 export default function BedroomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    const { socket, globalData, refreshUserData, alert, setAlert, updateSleepPercentage, clientId } = useAppContext();
+    const { socket, globalData, refreshUserData, alert, setAlert, updateSleepPercentage, clientId, forceSync } = useAppContext();
     const [refreshing, setRefreshing] = useState(false);
     if (!fontsLoaded) return null;
 
@@ -72,7 +72,6 @@ export default function BedroomScreen(props) {
             interval = setInterval(async () => {
                 try {
                     await updateSleepPercentage(0.2);
-                    // Forzar sincronización periódica
                     if (Math.floor(globalData.sleepPercentage) % 10 === 0) {
                         await forceSync();
                     }
@@ -104,22 +103,22 @@ export default function BedroomScreen(props) {
             socket.emit("toggleFocus", { clientId, isFocusOn }, (ack) => {
                 if (!ack?.success) {
                     console.error("Error al sincronizar estado del foco");
-                    // Revertir el estado si falla la sincronización
-                    setIsFocusOn(prev => !prev);
+                    setIsFocusOn(prev => !prev); // Revert on failure
+                    setToggleDisabled(false);
+                } else {
+                    setToggleDisabled(false);
                 }
             });
         };
 
-        const timer = setTimeout(handleFocusToggle, 500); // Pequeño delay para evitar sobrecarga
+        const timer = setTimeout(handleFocusToggle, 500);
 
         return () => clearTimeout(timer);
     }, [isFocusOn, clientId, socket]);
 
     useEffect(() => {
         const onBackPress = () => {
-            if (!isFocusOn) {
-                return true;
-            }
+            if (!isFocusOn) return true;
             return false;
         };
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -130,16 +129,14 @@ export default function BedroomScreen(props) {
         if (toggleDisabled) return;
         setToggleDisabled(true);
         setIsFocusOn(prev => !prev);
-    };    
+    };
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-            if (!isFocusOn) {
-                e.preventDefault();
-            }
+            if (!isFocusOn) e.preventDefault();
         });
         return () => unsubscribe();
-    }, [isFocusOn, navigation]);        
+    }, [isFocusOn, navigation]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -152,7 +149,6 @@ export default function BedroomScreen(props) {
         }
     };
 
-    // Configurar notificaciones push
     useEffect(() => {
         const checkStatus = async () => {
             const now = Date.now();
@@ -162,11 +158,11 @@ export default function BedroomScreen(props) {
             const scheduleNotification = async (title, message) => {
                 await Notifications.scheduleNotificationAsync({
                     content: {
-                        title: title,
+                        title,
                         body: message,
                         sound: true,
                     },
-                    trigger: null, 
+                    trigger: null,
                 });
                 setGlobalData(prev => ({ ...prev, lastAlertTime: now }));
             };
@@ -185,38 +181,34 @@ export default function BedroomScreen(props) {
                 );
             }
             if (globalData.foodPercentage <= 5) {
-                const timeToFull = (100 - globalData.foodPercentage) * 1800 / 100; // 3 min
+                const timeToFull = (100 - globalData.foodPercentage) * 1800 / 100;
                 await scheduleNotification(
                     '¡Tu tortuga tiene mucha hambre!',
-                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`,
-                    timeToFull
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`
                 );
             } else if (globalData.foodPercentage <= 15) {
                 const timeToFull = (100 - globalData.foodPercentage) * 1800 / 100;
                 await scheduleNotification(
                     '¡Tu tortuga tiene hambre!',
-                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`,
-                    timeToFull
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para alimentarla.`
                 );
             }
             if (globalData.gamePercentage <= 5) {
-                const timeToFull = (100 - globalData.gamePercentage) * 2400 / 100; // 4 min
+                const timeToFull = (100 - globalData.gamePercentage) * 2400 / 100;
                 await scheduleNotification(
                     '¡Tu tortuga quiere jugar mucho!',
-                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`,
-                    timeToFull
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`
                 );
             } else if (globalData.gamePercentage <= 15) {
                 const timeToFull = (100 - globalData.gamePercentage) * 2400 / 100;
                 await scheduleNotification(
                     '¡Tu tortuga quiere jugar!',
-                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`,
-                    timeToFull
+                    `Falta ${Math.ceil(timeToFull / 60000)} min para que juegue.`
                 );
             }
         };
 
-        const interval = setInterval(checkStatus, 30000); // Verificar cada 30 segundos
+        const interval = setInterval(checkStatus, 30000);
         return () => clearInterval(interval);
     }, [globalData]);
 

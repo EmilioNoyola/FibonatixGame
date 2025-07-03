@@ -1,98 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, StatusBar, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Fontisto from '@expo/vector-icons/Fontisto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from "react";
+import { View, Text, Pressable, StyleSheet, ScrollView, StatusBar, Dimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Fontisto from "@expo/vector-icons/Fontisto";
+import { RFPercentage } from "react-native-responsive-fontsize";
+import useCustomFonts from "../../../../assets/components/FontsConfigure";
+import CustomAlert from "../../../../assets/components/CustomAlert";
+import { useAppContext } from "../../../../assets/context/AppContext";
+import { gameService } from "../../../../assets/services/ApiService";
 
-// Fuentes personalizadas
-import useCustomFonts from '../../../../assets/components/FontsConfigure';
+const { width } = Dimensions.get("window");
+const scale = width / 414;
 
 function Levels({ navigation }) {
-  const [unlockedLevels, setUnlockedLevels] = useState([1]);  // Nivel 1 desbloqueado siempre
-  
-  // Si las fuentes no están cargadas, se retorna null
+  const { clientId } = useAppContext();
+  const [unlockedLevels, setUnlockedLevels] = useState([1]);
+  const [alerts, setAlerts] = useState({ type: null, visible: false });
+
+  const showAlert = (type) => setAlerts({ type, visible: true });
+  const hideAlert = () => setAlerts({ ...alerts, visible: false });
+
   const { fontsLoaded, onLayoutRootView } = useCustomFonts();
   if (!fontsLoaded) return null;
 
-  // Cargar los niveles desbloqueados al abrir la pantalla
   const loadUnlockedLevels = async () => {
     try {
-      const storedLevels = await AsyncStorage.getItem('@unlocked_levels');
-      if (storedLevels !== null) {
-        setUnlockedLevels(JSON.parse(storedLevels));
+      if (!clientId) {
+        setUnlockedLevels([1]);
+        return;
       }
+      const levelsUnlocked = await gameService.getUnlockedLevels(clientId, 6);
+      const levelsArray = Array.from({ length: levelsUnlocked }, (_, i) => i + 1);
+      setUnlockedLevels(levelsArray.length > 0 ? levelsArray : [1]);
     } catch (error) {
-      console.error('Error al cargar los niveles desbloqueados:', error);
+      console.error("Error al cargar los niveles desbloqueados desde la base de datos:", error);
+      setUnlockedLevels([1]);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadUnlockedLevels();  
+    loadUnlockedLevels();
+  }, [clientId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadUnlockedLevels();
     });
     return unsubscribe;
   }, [navigation]);
 
-  const renderLevels = () => {
-    const totalLevels = 6;  
-    return [...Array(totalLevels)].map((_, i) => {
-      const level = i + 1;
-      const isUnlocked = unlockedLevels.includes(level);
-
-      return (
-        <Pressable
-          key={level}
-          style={({ pressed }) => [
-            styles.levelButton,
-            !isUnlocked && styles.lockedButton,
-            {
-              backgroundColor: isUnlocked
-                ? pressed
-                  ? '#6351D9' // Color oscurecido al presionar
-                  : '#7A65FB' // Color original
-                : '#EEE4FF', // Color de botón bloqueado
-            },
-          ]}
-          onPress={() => {
-            if (isUnlocked) {
-              // Navegar al componente genérico de nivel pasando el número de nivel como parámetro
-              navigation.navigate('GameLevel', { levelNumber: level });
-            } else {
-              Alert.alert(
-                'Nivel Bloqueado',
-                'Completa los niveles anteriores para desbloquear este nivel.'
-              );
-            }
-          }}
-        >
-          <Text style={[
-            styles.levelButtonText,
-            !isUnlocked && styles.lockedButtonText
-          ]}>
-            {isUnlocked ? `Nivel ${level}` : <Fontisto name="locked" size={24} color="#A590FF" />}
-          </Text>
-        </Pressable>
-      );
-    });
-  };
+  const allLevels = [1, 2, 3, 4, 5, 6];
 
   return (
     <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
       <StatusBar backgroundColor="transparent" barStyle="dark-content" />
-
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Selección de Nivel</Text>
+      <View style={[styles.header, { backgroundColor: "#A590FF" }]}>
+        <Text style={styles.textoTitulo}>Selección de Nivel</Text>
       </View>
-
-      <View style={styles.purpleBackground}>
+      <View style={[styles.levelsContainer, { backgroundColor: "#CDC1FF" }]}>
         <ScrollView
-          contentContainerStyle={styles.levelsContainer}
+          contentContainerStyle={styles.levels}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {renderLevels()}
+          {allLevels.map((level) => (
+            <Pressable
+              key={level}
+              onPress={() => {
+                if (unlockedLevels.includes(level)) {
+                  navigation.navigate("GameLevel", { levelNumber: level });
+                } else {
+                  showAlert("Nivel Bloqueado");
+                }
+              }}
+              style={({ pressed }) => [
+                unlockedLevels.includes(level)
+                  ? {
+                      ...styles.boton,
+                      backgroundColor: pressed ? "#6351D9" : "#7A65FB",
+                    }
+                  : {
+                      ...styles.boton,
+                      backgroundColor: "#EEE4FF",
+                    },
+                styles.boton,
+              ]}
+              disabled={!unlockedLevels.includes(level)}
+            >
+              <Text style={styles.textoBoton}>
+                {unlockedLevels.includes(level) ? `Nivel ${level}` : <Fontisto name="locked" size={24 * scale} color="#7A65FB" />}
+              </Text>
+            </Pressable>
+          ))}
         </ScrollView>
       </View>
+      {alerts.visible && (
+        <CustomAlert
+          showAlert={alerts.visible}
+          title="Nivel Bloqueado"
+          message="Completa los niveles anteriores para desbloquear este nivel."
+          onConfirm={hideAlert}
+          confirmText="Aceptar"
+          confirmButtonColor="#7A65FB"
+          cancelButtonColor="#EEE4FF"
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -100,55 +111,49 @@ function Levels({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEE4FF',
+    backgroundColor: "#EEE4FF",
   },
   header: {
-    backgroundColor: '#A590FF',
-    marginHorizontal: 10,
-    paddingVertical: 20,
-    borderRadius: 30,
-    alignItems: 'center',
+    marginHorizontal: 10 * scale,
+    paddingVertical: 20 * scale,
+    borderRadius: 30 * scale,
+    alignItems: "center",
   },
-  headerText: {
-    fontSize: 30,
-    color: '#3B1F70', 
-    fontFamily: 'Quicksand',
-    textTransform: 'uppercase',
-  },
-  purpleBackground: {
-    backgroundColor: '#CDC1FF', 
-    borderRadius: 20,
-    margin: 10,
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  textoTitulo: {
+    fontSize: RFPercentage(4),
+    color: "#3B1F70",
+    fontFamily: "Quicksand",
+    textTransform: "uppercase",
   },
   levelsContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-    padding: 20,
-    borderRadius: 30,
-    width: '100%',
-    gap: 20,
+    borderRadius: 20 * scale,
+    margin: 10 * scale,
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  levelButton: {
-    backgroundColor: '#7A65FB', 
-    paddingVertical: 15,
-    paddingHorizontal: 78,
-    borderRadius: 15,
-    marginBottom: 10,
-    width: '80%',
-    alignItems: 'center',
-    justifyContent: 'center',
+  levels: {
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "column",
+    padding: 20 * scale,
+    borderRadius: 30 * scale,
+    width: "100%",
+    gap: 20 * scale,
   },
-  levelButtonText: {
-    fontSize: 20,
-    fontFamily: 'Quicksand',
-    color: '#FFFFFF',
+  boton: {
+    paddingVertical: 15 * scale,
+    paddingHorizontal: 78 * scale,
+    borderRadius: 15 * scale,
+    marginBottom: 10 * scale,
+    width: "80%",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  lockedButton: {
-    backgroundColor: '#EEE4FF', 
+  textoBoton: {
+    fontSize: RFPercentage(3),
+    fontFamily: "Quicksand",
+    color: "#FFFFFF",
   },
 });
 
