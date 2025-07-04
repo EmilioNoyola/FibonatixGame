@@ -58,42 +58,36 @@ export const AppProvider = ({ children }) => {
 
     // Función para registrar el inicio de sesión
     const startAppSession = async () => {
-        if (!clientId || isManagingSession) return;
+        if (!clientId) return;
         
-        setIsManagingSession(true);
         try {
-            // Primero cerramos cualquier sesión activa existente
-            const [activeSessions] = await CONNECTION_SQL.execute(
-                'SELECT session_ID FROM App_Session WHERE client_ID = ? AND session_active = TRUE',
-                [clientId]
-            );
-
-            for (const session of activeSessions) {
-                await endAppSession(session.session_ID);
+            // Primero cerrar cualquier sesión activa existente
+            if (currentSessionId) {
+                await api.post('/api/endAppSession', { 
+                    session_ID: currentSessionId,
+                    client_ID: clientId
+                }).catch(console.error);
             }
 
+            // Crear nueva sesión
             const response = await api.post('/api/startAppSession', { 
                 client_ID: clientId 
             });
             
-            if (response.data && response.data.session_ID) {
+            if (response.data?.session_ID) {
                 setCurrentSessionId(response.data.session_ID);
                 console.log('Sesión de aplicación iniciada:', response.data.session_ID);
             }
         } catch (error) {
             console.error('Error al iniciar sesión de aplicación:', error);
-            // Resetear el estado si falla
             setCurrentSessionId(null);
-        } finally {
-            setIsManagingSession(false);
         }
     };
 
     // Función para registrar el cierre de sesión
     const endAppSession = async (sessionId = currentSessionId) => {
-        if (!clientId || !sessionId || isManagingSession) return;
+        if (!clientId || !sessionId) return;
         
-        setIsManagingSession(true);
         try {
             await api.post('/api/endAppSession', { 
                 session_ID: sessionId,
@@ -101,47 +95,50 @@ export const AppProvider = ({ children }) => {
             });
             console.log('Sesión de aplicación finalizada:', sessionId);
             
-            // Solo resetear si es la sesión actual
             if (sessionId === currentSessionId) {
                 setCurrentSessionId(null);
             }
+            return true;
         } catch (error) {
             console.error('Error al finalizar sesión de aplicación:', error);
-            throw error; // Propagar el error para manejo superior
-        } finally {
-            setIsManagingSession(false);
+            return false;
         }
     };
 
     // Manejar cambios en el estado de la aplicación
     useEffect(() => {
         let isMounted = true;
+        let sessionTimeout;
         
         const handleAppStateChange = async (nextAppState) => {
-            if (!isMounted) return;
+            if (!isMounted || !clientId) return;
             
             console.log(`App state changed from ${appState} to ${nextAppState}`);
             
-            // Solo manejar cambios relevantes
+            // Ignorar si no hay cambio real de estado
             if (appState === nextAppState) return;
 
-            // App se está volviendo activa
-            if (nextAppState === 'active') {
-                try {
+            try {
+                if (nextAppState === 'active') {
+                    // Cerrar cualquier sesión previa antes de abrir una nueva
+                    if (currentSessionId) {
+                        await endAppSession(currentSessionId).catch(console.error);
+                    }
                     await startAppSession();
-                } catch (error) {
-                    console.error('Error al iniciar sesión:', error);
+                } else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
+                    // Usar un timeout para asegurar el cierre incluso si la app es terminada
+                    sessionTimeout = setTimeout(async () => {
+                        try {
+                            if (currentSessionId && isMounted) {
+                                await endAppSession(currentSessionId);
+                            }
+                        } catch (error) {
+                            console.error('Error al finalizar sesión en timeout:', error);
+                        }
+                    }, 1000); // 1 segundo de gracia
                 }
-            } 
-            // App se está yendo a background/cerrando
-            else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
-                try {
-                    await endAppSession();
-                } catch (error) {
-                    console.error('Error al finalizar sesión:', error);
-                    // Reintentar después de un breve retraso
-                    setTimeout(endAppSession, 1000);
-                }
+            } catch (error) {
+                console.error('Error en manejo de cambio de estado:', error);
             }
 
             if (isMounted) {
@@ -151,38 +148,19 @@ export const AppProvider = ({ children }) => {
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-        // Iniciar sesión al montar si está autenticado
-        if (isAuthenticated && clientId) {
-            startAppSession().catch(error => {
-                console.error('Error al iniciar sesión inicial:', error);
-            });
-        }
-
         return () => {
             isMounted = false;
+            clearTimeout(sessionTimeout);
             subscription.remove();
             
-            // Forzar cierre de sesión al desmontar
+            // Forzar cierre de sesión al desmontar si aún está activa
             if (currentSessionId && clientId) {
-                endAppSession().catch(error => {
+                endAppSession(currentSessionId).catch(error => {
                     console.error('Error al finalizar sesión en cleanup:', error);
                 });
             }
         };
     }, [isAuthenticated, clientId, currentSessionId, appState]);
-
-    const forceSync = async () => {
-        if (!user || !clientId) return;
-        
-        try {
-            const { clientId: fetchedClientId, data: userData } = await globalDataService.getUserData(user.uid, setClientId);
-            setGlobalData(userData);
-            return userData;
-        } catch (error) {
-            console.error("Error en sincronización forzada:", error);
-            throw error;
-        }
-    };
 
     const checkStatusLevels = useCallback((data) => {
         const now = Date.now();
