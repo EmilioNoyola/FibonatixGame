@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { globalDataService, personalityService, api } from '../services/ApiService';
 import { io } from 'socket.io-client';
-import { AppState } from 'react-native'; // Added missing import
+import { AppState } from 'react-native';
 import { Platform } from 'react-native';
 import { SOCKET_URL } from '../services/ApiService';
 
@@ -56,17 +56,36 @@ export const AppProvider = ({ children }) => {
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [isManagingSession, setIsManagingSession] = useState(false);
 
-    // Función para registrar el inicio de sesión
-    const startAppSession = async () => {
-        if (!clientId) return;
+    // Función forceSync movida dentro del componente para tener acceso a user y clientId
+    const forceSync = useCallback(async () => {
+        if (!user || !clientId) return;
         
         try {
+            const { clientId: fetchedClientId, data: userData } = await globalDataService.getUserData(user.uid, setClientId);
+            setGlobalData(userData);
+            return userData;
+        } catch (error) {
+            console.error("Error en sincronización forzada:", error);
+            throw error;
+        }
+    }, [user, clientId]);
+
+    // Función para registrar el inicio de sesión
+    const startAppSession = useCallback(async () => {
+        if (!clientId || isManagingSession) return;
+        
+        setIsManagingSession(true);
+        try {
+            console.log('Iniciando sesión de aplicación para cliente:', clientId);
+            
             // Primero cerrar cualquier sesión activa existente
             if (currentSessionId) {
                 await api.post('/api/endAppSession', { 
                     session_ID: currentSessionId,
                     client_ID: clientId
-                }).catch(console.error);
+                }).catch(error => {
+                    console.error('Error al cerrar sesión previa:', error);
+                });
             }
 
             // Crear nueva sesión
@@ -76,24 +95,32 @@ export const AppProvider = ({ children }) => {
             
             if (response.data?.session_ID) {
                 setCurrentSessionId(response.data.session_ID);
-                console.log('Sesión de aplicación iniciada:', response.data.session_ID);
+                console.log('Sesión de aplicación iniciada exitosamente:', response.data.session_ID);
+            } else {
+                console.error('No se recibió session_ID en la respuesta:', response.data);
             }
         } catch (error) {
             console.error('Error al iniciar sesión de aplicación:', error);
             setCurrentSessionId(null);
+        } finally {
+            setIsManagingSession(false);
         }
-    };
+    }, [clientId, currentSessionId, isManagingSession]);
 
     // Función para registrar el cierre de sesión
-    const endAppSession = async (sessionId = currentSessionId) => {
-        if (!clientId || !sessionId) return;
+    const endAppSession = useCallback(async (sessionId = currentSessionId) => {
+        if (!clientId || !sessionId || isManagingSession) return false;
         
+        setIsManagingSession(true);
         try {
-            await api.post('/api/endAppSession', { 
+            console.log('Finalizando sesión de aplicación:', sessionId);
+            
+            const response = await api.post('/api/endAppSession', { 
                 session_ID: sessionId,
                 client_ID: clientId
             });
-            console.log('Sesión de aplicación finalizada:', sessionId);
+            
+            console.log('Sesión de aplicación finalizada exitosamente:', response.data);
             
             if (sessionId === currentSessionId) {
                 setCurrentSessionId(null);
@@ -102,11 +129,15 @@ export const AppProvider = ({ children }) => {
         } catch (error) {
             console.error('Error al finalizar sesión de aplicación:', error);
             return false;
+        } finally {
+            setIsManagingSession(false);
         }
-    };
+    }, [clientId, currentSessionId, isManagingSession]);
 
     // Manejar cambios en el estado de la aplicación
     useEffect(() => {
+        if (!isAuthenticated || !clientId) return;
+
         let isMounted = true;
         let sessionTimeout;
         
@@ -122,20 +153,27 @@ export const AppProvider = ({ children }) => {
                 if (nextAppState === 'active') {
                     // Cerrar cualquier sesión previa antes de abrir una nueva
                     if (currentSessionId) {
-                        await endAppSession(currentSessionId).catch(console.error);
+                        await endAppSession(currentSessionId);
                     }
-                    await startAppSession();
+                    // Esperar un poco antes de crear nueva sesión
+                    setTimeout(() => {
+                        if (isMounted) {
+                            startAppSession();
+                        }
+                    }, 500);
                 } else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
                     // Usar un timeout para asegurar el cierre incluso si la app es terminada
-                    sessionTimeout = setTimeout(async () => {
-                        try {
-                            if (currentSessionId && isMounted) {
-                                await endAppSession(currentSessionId);
+                    if (currentSessionId) {
+                        sessionTimeout = setTimeout(async () => {
+                            try {
+                                if (isMounted && currentSessionId) {
+                                    await endAppSession(currentSessionId);
+                                }
+                            } catch (error) {
+                                console.error('Error al finalizar sesión en timeout:', error);
                             }
-                        } catch (error) {
-                            console.error('Error al finalizar sesión en timeout:', error);
-                        }
-                    }, 1000); // 1 segundo de gracia
+                        }, 1000);
+                    }
                 }
             } catch (error) {
                 console.error('Error en manejo de cambio de estado:', error);
@@ -147,6 +185,11 @@ export const AppProvider = ({ children }) => {
         };
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        // Iniciar sesión cuando la app está activa inicialmente
+        if (appState === 'active' && !currentSessionId) {
+            startAppSession();
+        }
 
         return () => {
             isMounted = false;
@@ -160,7 +203,7 @@ export const AppProvider = ({ children }) => {
                 });
             }
         };
-    }, [isAuthenticated, clientId, currentSessionId, appState]);
+    }, [isAuthenticated, clientId, appState, currentSessionId, startAppSession, endAppSession]);
 
     const checkStatusLevels = useCallback((data) => {
         const now = Date.now();
@@ -209,8 +252,8 @@ export const AppProvider = ({ children }) => {
         [checkStatusLevels]
     );
 
+    // WebSocket connection
     useEffect(() => {
-
         if (!user || !clientId) return;
 
         const newSocket = io(SOCKET_URL, {
@@ -232,7 +275,6 @@ export const AppProvider = ({ children }) => {
             console.log("Desconectado del servidor WebSocket:", reason);
             setSocketReady(false);
             if (reason === "io server disconnect") {
-                // Intentar reconectar después de un breve retraso
                 setTimeout(() => {
                     newSocket.connect();
                 }, 2000);
@@ -241,7 +283,6 @@ export const AppProvider = ({ children }) => {
 
         const handleUpdate = (data) => {
             setGlobalData(prev => {
-                // Eliminar el filtro estricto de diferencias > 1
                 const newData = {
                     ...prev,
                     coins: data.coins !== undefined ? data.coins : prev.coins,
@@ -252,7 +293,6 @@ export const AppProvider = ({ children }) => {
                     lastAlertTime: data.lastAlertTime !== undefined ? data.lastAlertTime : prev.lastAlertTime
                 };
                 
-                // Verificar si hubo cambios reales
                 if (JSON.stringify(prev) !== JSON.stringify(newData)) {
                     return newData;
                 }
@@ -271,9 +311,7 @@ export const AppProvider = ({ children }) => {
         newSocket.on("connect_error", handleConnectError);
         newSocket.on("updateGlobalData", handleUpdate);
 
-        // Intentar conectar inicialmente
         newSocket.connect();
-
         setSocket(newSocket);
 
         return () => {
@@ -285,6 +323,7 @@ export const AppProvider = ({ children }) => {
         };
     }, [user, clientId, debouncedCheckStatus]);
 
+    // Auth state listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setLoading(true);
@@ -293,6 +332,7 @@ export const AppProvider = ({ children }) => {
                 setIsAuthenticated(false);
                 setClientId(null);
                 setLicense(null);
+                setCurrentSessionId(null);
                 setGlobalData({
                     coins: 0,
                     trophies: 0,
@@ -312,8 +352,11 @@ export const AppProvider = ({ children }) => {
 
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                if (userDoc.exists()) setLicense(userDoc.data().license);
-                else throw new Error('User document not found in Firestore');
+                if (userDoc.exists()) {
+                    setLicense(userDoc.data().license);
+                } else {
+                    throw new Error('User document not found in Firestore');
+                }
 
                 let fetchedClientId;
                 let userData;
@@ -349,7 +392,9 @@ export const AppProvider = ({ children }) => {
                         console.error('Error fetching personality traits:', error);
                         setPersonalityTraits([]);
                     }
-                } else setPersonalityTraits([]);
+                } else {
+                    setPersonalityTraits([]);
+                }
 
                 setIsAuthenticated(true);
             } catch (err) {
@@ -364,6 +409,7 @@ export const AppProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
+    // Periodic sync
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -373,11 +419,12 @@ export const AppProvider = ({ children }) => {
             } catch (error) {
                 console.error("Error en sincronización periódica:", error);
             }
-        }, 30000); // Cada 30 segundos
+        }, 30000);
 
         return () => clearInterval(syncInterval);
-    }, [user, clientId]);
+    }, [forceSync]);
 
+    // Helper functions
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
         try {
@@ -441,7 +488,6 @@ export const AppProvider = ({ children }) => {
                 ...prev, 
                 coins: updatedData.coins 
             }));
-            // Forzar sincronización completa
             const fullData = await forceSync();
             setGlobalData(fullData);
             return updatedData;
@@ -504,6 +550,10 @@ export const AppProvider = ({ children }) => {
         error,
         alert,
         setAlert,
+        // Añadimos las funciones de sesión al contexto
+        startAppSession,
+        endAppSession,
+        currentSessionId,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
