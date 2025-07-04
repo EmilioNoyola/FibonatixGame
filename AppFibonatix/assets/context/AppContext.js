@@ -2,7 +2,7 @@ import '../services/Credentials';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { globalDataService, personalityService } from '../services/ApiService';
+import { globalDataService, personalityService, api } from '../services/ApiService';
 import { io } from 'socket.io-client';
 import { AppState } from 'react-native'; // Added missing import
 import { Platform } from 'react-native';
@@ -54,65 +54,122 @@ export const AppProvider = ({ children }) => {
 
     const [appState, setAppState] = useState(AppState.currentState);
     const [currentSessionId, setCurrentSessionId] = useState(null);
+    const [isManagingSession, setIsManagingSession] = useState(false);
 
     // Función para registrar el inicio de sesión
     const startAppSession = async () => {
-        if (!clientId) return;
+        if (!clientId || isManagingSession) return;
         
+        setIsManagingSession(true);
         try {
-            const response = await api.post('/api/startAppSession', { client_ID: clientId });
-            setCurrentSessionId(response.data.session_ID);
-            console.log('Sesión de aplicación iniciada:', response.data.session_ID);
+            // Primero cerramos cualquier sesión activa existente
+            const [activeSessions] = await CONNECTION_SQL.execute(
+                'SELECT session_ID FROM App_Session WHERE client_ID = ? AND session_active = TRUE',
+                [clientId]
+            );
+
+            for (const session of activeSessions) {
+                await endAppSession(session.session_ID);
+            }
+
+            const response = await api.post('/api/startAppSession', { 
+                client_ID: clientId 
+            });
+            
+            if (response.data && response.data.session_ID) {
+                setCurrentSessionId(response.data.session_ID);
+                console.log('Sesión de aplicación iniciada:', response.data.session_ID);
+            }
         } catch (error) {
             console.error('Error al iniciar sesión de aplicación:', error);
+            // Resetear el estado si falla
+            setCurrentSessionId(null);
+        } finally {
+            setIsManagingSession(false);
         }
     };
 
     // Función para registrar el cierre de sesión
-    const endAppSession = async () => {
-        if (!clientId || !currentSessionId) return;
+    const endAppSession = async (sessionId = currentSessionId) => {
+        if (!clientId || !sessionId || isManagingSession) return;
         
+        setIsManagingSession(true);
         try {
             await api.post('/api/endAppSession', { 
-                session_ID: currentSessionId,
+                session_ID: sessionId,
                 client_ID: clientId
             });
-            console.log('Sesión de aplicación finalizada:', currentSessionId);
-            setCurrentSessionId(null);
+            console.log('Sesión de aplicación finalizada:', sessionId);
+            
+            // Solo resetear si es la sesión actual
+            if (sessionId === currentSessionId) {
+                setCurrentSessionId(null);
+            }
         } catch (error) {
             console.error('Error al finalizar sesión de aplicación:', error);
+            throw error; // Propagar el error para manejo superior
+        } finally {
+            setIsManagingSession(false);
         }
     };
 
     // Manejar cambios en el estado de la aplicación
     useEffect(() => {
+        let isMounted = true;
+        
         const handleAppStateChange = async (nextAppState) => {
-            if (appState.match(/inactive|background/) && nextAppState === 'active') {
-                // La aplicación acaba de entrar en primer plano
-                await startAppSession();
-            } else if (nextAppState.match(/inactive|background/)) {
-                // La aplicación acaba de ir a segundo plano
-                await endAppSession();
-            }
+            if (!isMounted) return;
             
-            setAppState(nextAppState);
+            console.log(`App state changed from ${appState} to ${nextAppState}`);
+            
+            // Solo manejar cambios relevantes
+            if (appState === nextAppState) return;
+
+            // App se está volviendo activa
+            if (nextAppState === 'active') {
+                try {
+                    await startAppSession();
+                } catch (error) {
+                    console.error('Error al iniciar sesión:', error);
+                }
+            } 
+            // App se está yendo a background/cerrando
+            else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
+                try {
+                    await endAppSession();
+                } catch (error) {
+                    console.error('Error al finalizar sesión:', error);
+                    // Reintentar después de un breve retraso
+                    setTimeout(endAppSession, 1000);
+                }
+            }
+
+            if (isMounted) {
+                setAppState(nextAppState);
+            }
         };
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
-        
-        // Iniciar sesión al montar el componente si ya está autenticado
-        if (isAuthenticated) {
-            startAppSession();
+
+        // Iniciar sesión al montar si está autenticado
+        if (isAuthenticated && clientId) {
+            startAppSession().catch(error => {
+                console.error('Error al iniciar sesión inicial:', error);
+            });
         }
 
         return () => {
+            isMounted = false;
             subscription.remove();
-            // Finalizar sesión al desmontar el componente si está activa
-            if (currentSessionId) {
-                endAppSession();
+            
+            // Forzar cierre de sesión al desmontar
+            if (currentSessionId && clientId) {
+                endAppSession().catch(error => {
+                    console.error('Error al finalizar sesión en cleanup:', error);
+                });
             }
         };
-    }, [isAuthenticated, clientId, currentSessionId]);
+    }, [isAuthenticated, clientId, currentSessionId, appState]);
 
     const forceSync = async () => {
         if (!user || !clientId) return;

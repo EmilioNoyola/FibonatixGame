@@ -5,12 +5,30 @@ import { io } from 'socket.io-client';
 const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/';
 export const SOCKET_URL = 'wss://shurtleserver-production.up.railway.app/';
 
-const api = axios.create({
+export const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 10000, // 10 segundos de timeout
 });
+
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response) {
+            // El servidor respondió con un código de estado fuera del rango 2xx
+            console.error('Error de respuesta:', error.response.status, error.response.data);
+        } else if (error.request) {
+            // La solicitud fue hecha pero no se recibió respuesta
+            console.error('Error de solicitud:', error.request);
+        } else {
+            // Algo pasó al configurar la solicitud
+            console.error('Error:', error.message);
+        }
+        return Promise.reject(error);
+    }
+);
 
 const socket = io(SOCKET_URL, {
     autoConnect: false,
