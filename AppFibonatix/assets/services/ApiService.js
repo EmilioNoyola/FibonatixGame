@@ -61,11 +61,9 @@ const getClientId = async (uid, setClientId) => {
     const user = auth.currentUser || { uid };
     if (!user) throw new Error('Usuario no autenticado');
 
-    console.log('Obteniendo client_ID para UID:', user.uid);
-
     try {
         const response = await api.post('/api/getClientId', { client_fire_base_ID: user.uid });
-        console.log('Respuesta de /api/getClientId:', response.data);
+
         if (setClientId) setClientId(response.data.client_ID);
         return response.data.client_ID;
     } catch (error) {

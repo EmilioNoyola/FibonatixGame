@@ -61,6 +61,9 @@ import ParentalControl from '../Options/ParentalControl';
 import SupportAndHelp from '../Options/SupportAndHelp';
 
 import AdminScreen from '../Admin/AdminScreen';
+import DashboardParentalControl from '../Options/DashboardParentalControl'
+
+import RecoverPin from '../Options/recoverPin'
 
 const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 const Stack = createStackNavigator();
@@ -292,6 +295,8 @@ const AppStack = () => (
         <Stack.Screen name='Juego6' component={Juego6} />
         <Stack.Screen name='Juego7' component={Juego7} />
         <Stack.Screen name='Juego8' component={Juego8} />
+        <Stack.Screen name='DashboardParentalControl' component={DashboardParentalControl} />
+        <Stack.Screen name="RecoverPin" component={RecoverPin} />
     </Stack.Navigator>
 );
 

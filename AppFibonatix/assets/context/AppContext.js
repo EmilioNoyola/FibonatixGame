@@ -1,11 +1,11 @@
 import '../services/Credentials'; 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { globalDataService, personalityService, api } from '../services/ApiService';
 import { io } from 'socket.io-client';
 import { AppState } from 'react-native';
-import { Platform } from 'react-native';
+import { Platform, BackHandler } from 'react-native';
 import { SOCKET_URL } from '../services/ApiService';
 
 const AppContext = createContext();
@@ -13,7 +13,6 @@ const db = getFirestore();
 
 export const useAppContext = () => useContext(AppContext);
 
-// Función debounce helper fuera del componente
 function debounce(func, wait) {
     let timeout;
     return function(...args) {
@@ -56,10 +55,10 @@ export const AppProvider = ({ children }) => {
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [isManagingSession, setIsManagingSession] = useState(false);
 
-    // Función forceSync movida dentro del componente para tener acceso a user y clientId
+    const sessionIdRef = useRef(null);
+
     const forceSync = useCallback(async () => {
         if (!user || !clientId) return;
-        
         try {
             const { clientId: fetchedClientId, data: userData } = await globalDataService.getUserData(user.uid, setClientId);
             setGlobalData(userData);
@@ -70,30 +69,21 @@ export const AppProvider = ({ children }) => {
         }
     }, [user, clientId]);
 
-    // Función para registrar el inicio de sesión
     const startAppSession = useCallback(async () => {
         if (!clientId || isManagingSession) return;
+        
+        // Si ya hay una sesión activa, no crear otra
+        if (sessionIdRef.current) {
+            console.log('Ya existe una sesión activa:', sessionIdRef.current);
+            return;
+        }
         
         setIsManagingSession(true);
         try {
             console.log('Iniciando sesión de aplicación para cliente:', clientId);
-            
-            // Primero cerrar cualquier sesión activa existente
-            if (currentSessionId) {
-                await api.post('/api/endAppSession', { 
-                    session_ID: currentSessionId,
-                    client_ID: clientId
-                }).catch(error => {
-                    console.error('Error al cerrar sesión previa:', error);
-                });
-            }
-
-            // Crear nueva sesión
-            const response = await api.post('/api/startAppSession', { 
-                client_ID: clientId 
-            });
-            
+            const response = await api.post('/api/startAppSession', { client_ID: clientId });
             if (response.data?.session_ID) {
+                sessionIdRef.current = response.data.session_ID;
                 setCurrentSessionId(response.data.session_ID);
                 console.log('Sesión de aplicación iniciada exitosamente:', response.data.session_ID);
             } else {
@@ -101,109 +91,171 @@ export const AppProvider = ({ children }) => {
             }
         } catch (error) {
             console.error('Error al iniciar sesión de aplicación:', error);
+            sessionIdRef.current = null;
             setCurrentSessionId(null);
         } finally {
             setIsManagingSession(false);
         }
-    }, [clientId, currentSessionId, isManagingSession]);
+    }, [clientId, isManagingSession]);
 
-    // Función para registrar el cierre de sesión
-    const endAppSession = useCallback(async (sessionId = currentSessionId) => {
-        if (!clientId || !sessionId || isManagingSession) return false;
+    const endAppSession = useCallback(async () => {
+        const sessionToClose = sessionIdRef.current || currentSessionId;
+        
+        if (!clientId || !sessionToClose || isManagingSession) {
+            console.log('No se puede cerrar sesión:', { 
+                clientId, 
+                sessionToClose, 
+                isManagingSession,
+                refValue: sessionIdRef.current,
+                stateValue: currentSessionId
+            });
+            return false;
+        }
         
         setIsManagingSession(true);
+        
         try {
-            console.log('Finalizando sesión de aplicación:', sessionId);
+            console.log('Intentando cerrar sesión:', sessionToClose);
             
-            const response = await api.post('/api/endAppSession', { 
-                session_ID: sessionId,
+            // Usar AbortController para timeout
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+            
+            const response = await api.post('/api/endAppSession', {
+                session_ID: sessionToClose,
                 client_ID: clientId
-            });
+            }, { signal: controller.signal });
             
-            console.log('Sesión de aplicación finalizada exitosamente:', response.data);
+            clearTimeout(timeout);
             
-            if (sessionId === currentSessionId) {
-                setCurrentSessionId(null);
-            }
+            console.log('Sesión cerrada exitosamente:', response.data);
+            
+            // Limpiar ambos: ref y state
+            sessionIdRef.current = null;
+            setCurrentSessionId(null);
             return true;
         } catch (error) {
-            console.error('Error al finalizar sesión de aplicación:', error);
-            return false;
+            if (error.name === 'AbortError') {
+                console.log('Timeout al cerrar sesión, pero continuando...');
+                sessionIdRef.current = null;
+                setCurrentSessionId(null);
+                return true;
+            } else {
+                console.error('Error al cerrar sesión:', error);
+                // Aún así limpiar el estado local para evitar sesiones zombi
+                sessionIdRef.current = null;
+                setCurrentSessionId(null);
+                return false;
+            }
         } finally {
             setIsManagingSession(false);
         }
     }, [clientId, currentSessionId, isManagingSession]);
 
-    // Manejar cambios en el estado de la aplicación
     useEffect(() => {
         if (!isAuthenticated || !clientId) return;
-
+        
         let isMounted = true;
-        let sessionTimeout;
+        let currentAppState = AppState.currentState;
         
         const handleAppStateChange = async (nextAppState) => {
-            if (!isMounted || !clientId) return;
+            if (!isMounted) return;
             
-            console.log(`App state changed from ${appState} to ${nextAppState}`);
+            console.log(`Estado cambiado de ${currentAppState} a ${nextAppState}`);
+            console.log('Session ID en cambio de estado:', {
+                ref: sessionIdRef.current,
+                state: currentSessionId
+            });
             
-            // Ignorar si no hay cambio real de estado
-            if (appState === nextAppState) return;
-
             try {
-                if (nextAppState === 'active') {
-                    // Cerrar cualquier sesión previa antes de abrir una nueva
-                    if (currentSessionId) {
-                        await endAppSession(currentSessionId);
-                    }
-                    // Esperar un poco antes de crear nueva sesión
+                // Cuando la app pasa a background o se cierra
+                if (currentAppState === 'active' && nextAppState.match(/inactive|background/)) {
+                    console.log('Aplicación está saliendo de primer plano - cerrando sesión');
+                    const closed = await endAppSession();
+                    console.log('Resultado del cierre:', closed);
+                }
+                
+                // Cuando la app vuelve a primer plano
+                if (nextAppState === 'active' && currentAppState !== 'active') {
+                    console.log('Aplicación volvió a primer plano - iniciando sesión');
+                    // Pequeño retraso para asegurar que la app está ready
                     setTimeout(() => {
                         if (isMounted) {
                             startAppSession();
                         }
                     }, 500);
-                } else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
-                    // Usar un timeout para asegurar el cierre incluso si la app es terminada
-                    if (currentSessionId) {
-                        sessionTimeout = setTimeout(async () => {
-                            try {
-                                if (isMounted && currentSessionId) {
-                                    await endAppSession(currentSessionId);
-                                }
-                            } catch (error) {
-                                console.error('Error al finalizar sesión en timeout:', error);
-                            }
-                        }, 1000);
-                    }
                 }
             } catch (error) {
                 console.error('Error en manejo de cambio de estado:', error);
             }
-
+            
+            // Actualizar el estado local
+            currentAppState = nextAppState;
             if (isMounted) {
                 setAppState(nextAppState);
             }
         };
 
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-        // Iniciar sesión cuando la app está activa inicialmente
-        if (appState === 'active' && !currentSessionId) {
+        // Iniciar sesión inicial si está activa y no hay sesión
+        if (AppState.currentState === 'active' && !sessionIdRef.current) {
+            console.log('Iniciando sesión inicial');
             startAppSession();
         }
 
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        
+        let backHandler;
+        let memoryWarningSubscription;
+        
+        if (Platform.OS === 'android') {
+            backHandler = BackHandler.addEventListener(
+                'hardwareBackPress',
+                async () => {
+                    console.log('Back button pressed - cerrando sesión');
+                    await endAppSession();
+                    return false;
+                }
+            );
+        }
+
+        if (Platform.OS !== 'web') {
+            memoryWarningSubscription = AppState.addEventListener('memoryWarning', async () => {
+                console.log('Memory warning - cerrando sesión');
+                await endAppSession();
+            });
+        }
+
+        // Cleanup function
         return () => {
             isMounted = false;
-            clearTimeout(sessionTimeout);
-            subscription.remove();
             
-            // Forzar cierre de sesión al desmontar si aún está activa
-            if (currentSessionId && clientId) {
-                endAppSession(currentSessionId).catch(error => {
-                    console.error('Error al finalizar sesión en cleanup:', error);
-                });
+            if (subscription) {
+                subscription.remove();
+            }
+            
+            if (backHandler) {
+                backHandler.remove();
+            }
+            
+            if (memoryWarningSubscription) {
+                memoryWarningSubscription.remove();
+            }
+            
+            // Forzar cierre de sesión si aún está activa
+            if (sessionIdRef.current && clientId) {
+                console.log('Limpieza final - cerrando sesión');
+                endAppSession().catch(console.error);
             }
         };
-    }, [isAuthenticated, clientId, appState, currentSessionId, startAppSession, endAppSession]);
+    }, [isAuthenticated, clientId]);
+
+    useEffect(() => {
+        // Cerrar sesión cuando el usuario se desloggea
+        if (!isAuthenticated && (sessionIdRef.current || currentSessionId)) {
+            console.log('Usuario desloggeado - cerrando sesión');
+            endAppSession().catch(console.error);
+        }
+    }, [isAuthenticated]);
 
     const checkStatusLevels = useCallback((data) => {
         const now = Date.now();
@@ -252,7 +304,6 @@ export const AppProvider = ({ children }) => {
         [checkStatusLevels]
     );
 
-    // WebSocket connection
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -292,7 +343,6 @@ export const AppProvider = ({ children }) => {
                     sleepPercentage: data.sleepPercentage !== undefined ? data.sleepPercentage : prev.sleepPercentage,
                     lastAlertTime: data.lastAlertTime !== undefined ? data.lastAlertTime : prev.lastAlertTime
                 };
-                
                 if (JSON.stringify(prev) !== JSON.stringify(newData)) {
                     return newData;
                 }
@@ -323,7 +373,6 @@ export const AppProvider = ({ children }) => {
         };
     }, [user, clientId, debouncedCheckStatus]);
 
-    // Auth state listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setLoading(true);
@@ -409,7 +458,6 @@ export const AppProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
-    // Periodic sync
     useEffect(() => {
         if (!user || !clientId) return;
 
@@ -424,7 +472,6 @@ export const AppProvider = ({ children }) => {
         return () => clearInterval(syncInterval);
     }, [forceSync]);
 
-    // Helper functions
     const decreaseFoodPercentageOnGamePlay = async () => {
         if (!user || !clientId) return;
         try {
@@ -550,7 +597,6 @@ export const AppProvider = ({ children }) => {
         error,
         alert,
         setAlert,
-        // Añadimos las funciones de sesión al contexto
         startAppSession,
         endAppSession,
         currentSessionId,
