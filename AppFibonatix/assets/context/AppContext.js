@@ -72,7 +72,6 @@ export const AppProvider = ({ children }) => {
     const startAppSession = useCallback(async () => {
         if (!clientId || isManagingSession) return;
         
-        // Si ya hay una sesión activa, no crear otra
         if (sessionIdRef.current) {
             console.log('Ya existe una sesión activa:', sessionIdRef.current);
             return;
@@ -117,9 +116,8 @@ export const AppProvider = ({ children }) => {
         try {
             console.log('Intentando cerrar sesión:', sessionToClose);
             
-            // Usar AbortController para timeout
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+            const timeout = setTimeout(() => controller.abort(), 5000);
             
             const response = await api.post('/api/endAppSession', {
                 session_ID: sessionToClose,
@@ -130,7 +128,6 @@ export const AppProvider = ({ children }) => {
             
             console.log('Sesión cerrada exitosamente:', response.data);
             
-            // Limpiar ambos: ref y state
             sessionIdRef.current = null;
             setCurrentSessionId(null);
             return true;
@@ -142,7 +139,6 @@ export const AppProvider = ({ children }) => {
                 return true;
             } else {
                 console.error('Error al cerrar sesión:', error);
-                // Aún así limpiar el estado local para evitar sesiones zombi
                 sessionIdRef.current = null;
                 setCurrentSessionId(null);
                 return false;
@@ -168,17 +164,14 @@ export const AppProvider = ({ children }) => {
             });
             
             try {
-                // Cuando la app pasa a background o se cierra
                 if (currentAppState === 'active' && nextAppState.match(/inactive|background/)) {
                     console.log('Aplicación está saliendo de primer plano - cerrando sesión');
                     const closed = await endAppSession();
                     console.log('Resultado del cierre:', closed);
                 }
                 
-                // Cuando la app vuelve a primer plano
                 if (nextAppState === 'active' && currentAppState !== 'active') {
                     console.log('Aplicación volvió a primer plano - iniciando sesión');
-                    // Pequeño retraso para asegurar que la app está ready
                     setTimeout(() => {
                         if (isMounted) {
                             startAppSession();
@@ -189,14 +182,12 @@ export const AppProvider = ({ children }) => {
                 console.error('Error en manejo de cambio de estado:', error);
             }
             
-            // Actualizar el estado local
             currentAppState = nextAppState;
             if (isMounted) {
                 setAppState(nextAppState);
             }
         };
 
-        // Iniciar sesión inicial si está activa y no hay sesión
         if (AppState.currentState === 'active' && !sessionIdRef.current) {
             console.log('Iniciando sesión inicial');
             startAppSession();
@@ -225,7 +216,6 @@ export const AppProvider = ({ children }) => {
             });
         }
 
-        // Cleanup function
         return () => {
             isMounted = false;
             
@@ -241,7 +231,6 @@ export const AppProvider = ({ children }) => {
                 memoryWarningSubscription.remove();
             }
             
-            // Forzar cierre de sesión si aún está activa
             if (sessionIdRef.current && clientId) {
                 console.log('Limpieza final - cerrando sesión');
                 endAppSession().catch(console.error);
@@ -250,7 +239,6 @@ export const AppProvider = ({ children }) => {
     }, [isAuthenticated, clientId]);
 
     useEffect(() => {
-        // Cerrar sesión cuando el usuario se desloggea
         if (!isAuthenticated && (sessionIdRef.current || currentSessionId)) {
             console.log('Usuario desloggeado - cerrando sesión');
             endAppSession().catch(console.error);
@@ -476,9 +464,12 @@ export const AppProvider = ({ children }) => {
         if (!user || !clientId) return;
         try {
             const amount = -5;
-            const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
-            setGlobalData(prev => ({ ...prev, foodPercentage: updatedData.foodPercentage }));
-            await forceSync();
+            const isDevelopmentMode = true; // Cambia a false para reactivar
+            if (!isDevelopmentMode) {
+                const updatedData = await globalDataService.updateFoodPercentage(amount, clientId);
+                setGlobalData(prev => ({ ...prev, foodPercentage: updatedData.foodPercentage }));
+                await forceSync();
+            }
         } catch (error) {
             console.error("Error decreasing food percentage on gameplay:", error);
             throw error;

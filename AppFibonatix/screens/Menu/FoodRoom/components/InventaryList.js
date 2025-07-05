@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, FlatList, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, Image, Alert } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Svg, { Path } from "react-native-svg";
 import { StyleSheet, Dimensions } from 'react-native';
@@ -14,10 +14,11 @@ const scale = width / 414;
 // Ajustar ITEM_WIDTH para que sea responsivo (originalmente 200px en un diseño de 414px)
 const ITEM_WIDTH = 200 * scale;
 
-export default function InventaryList({ inventory, onFeed }) {
+export default function InventaryList({ inventory = [], onFeed }) {
   const [indice, setIndice] = useState(0);
 
   const cambiarAlimento = (direccion) => {
+    if (!inventory || inventory.length === 0) return;
     let nuevoIndice = direccion === 'izquierda' ? indice - 1 : indice + 1;
     if (nuevoIndice < 0) nuevoIndice = inventory.length - 1;
     if (nuevoIndice >= inventory.length) nuevoIndice = 0;
@@ -25,12 +26,20 @@ export default function InventaryList({ inventory, onFeed }) {
   };
 
   const handleFeedPress = () => {
-    if (inventory[indice]?.foodStock > 0) {
-      onFeed(inventory[indice].foodId);
-    } else {
+    if (!inventory || !inventory[indice] || inventory[indice].foodStock <= 0) {
       Alert.alert('Error', 'No hay suficiente stock para alimentar.');
+      return;
     }
+    onFeed(inventory[indice].foodId);
   };
+
+  if (!inventory || inventory.length === 0) {
+    return (
+      <View style={styles.containerInventary}>
+        <Text>No hay alimentos en el inventario</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.containerInventary}>
@@ -47,17 +56,17 @@ export default function InventaryList({ inventory, onFeed }) {
       {/* Elementos del Inventario */}
       <View style={styles.itemsContainer}>
         {[-1, 0, 1].map((offset) => {
-          let index = (indice + offset + inventory.length) % inventory.length;
-          let item = inventory[index];
+          const index = (indice + offset + inventory.length) % inventory.length;
+          const item = inventory[index];
           const isActive = offset === 0;
-          return (
+          return item ? (
             <InventaryItem
               key={item.foodId}
               item={item}
               isActive={isActive}
               offset={offset}
             />
-          );
+          ) : null;
         })}
       </View>
 
@@ -112,7 +121,7 @@ function InventaryItem({ item, isActive, offset }) {
       </Animated.View>
       {isActive && (
         <View style={styles.priceTab}>
-          <Text style={styles.priceText}>{item.foodStock}</Text>
+          <Text style={styles.priceText}>{item.foodStock || 0}</Text>
         </View>
       )}
     </View>

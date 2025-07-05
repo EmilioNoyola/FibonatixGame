@@ -12,18 +12,23 @@ import { useAppContext } from '../../../assets/context/AppContext';
 import AnimatedBar from '../../../assets/components/AnimatedBar';
 import StatusAlertModal from '../../../assets/components/StatusAlertModal';
 import { styles } from './components/FoodRoomStyles';
+import axios from 'axios';
+
+const API_BASE_URL = 'https://shurtleserver-production.up.railway.app/';
 
 export default function FoodRoomScreen(props) {
     const { fontsLoaded, onLayoutRootView } = useCustomFonts();
-    const { globalData, refreshUserData, alert, setAlert } = useAppContext();
+    const { globalData, refreshUserData, alert, setAlert, updateFoodPercentage, updateCoins } = useAppContext();
     const [refreshing, setRefreshing] = useState(false);
-    if (!fontsLoaded) return null;
-
+    const [inventory, setInventory] = useState([]);
     const navigation = useNavigation();
     const { isConnected, writeToCharacteristic } = useBluetooth();
     const cleanupFSRRef = useRef(null);
 
     useEffect(() => {
+        if (!fontsLoaded) return;
+
+        fetchInventory();
         if (alert && isConnected) {
             if (cleanupFSRRef.current?.pauseMonitoring) {
                 cleanupFSRRef.current.pauseMonitoring();
@@ -40,18 +45,58 @@ export default function FoodRoomScreen(props) {
             
             return () => clearTimeout(timer);
         }
-    }, [alert, isConnected]);
+    }, [fontsLoaded, alert, isConnected, globalData.clientId]);
+
+    const fetchInventory = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}api/foodInventory/${globalData.clientId}`);
+            const foodInventory = response.data || [];
+            setInventory(foodInventory.map(item => ({
+                foodId: item.food_ID,
+                foodName: item.food_name,
+                foodStock: item.food_stock,
+                image: { uri: item.food_image_url }
+            })));
+        } catch (error) {
+            console.error('Error fetching inventory:', error);
+            setInventory([]); // Asegurar que inventory no sea undefined
+            setAlert({ type: 'error', message: 'Error al cargar el inventario.' });
+        }
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
         try {
             await refreshUserData();
+            await fetchInventory();
         } catch (error) {
             console.error('Error al recargar datos globales:', error);
+            setAlert({ type: 'error', message: 'Error al recargar datos.' });
         } finally {
             setRefreshing(false);
         }
     };
+
+    const handleFeed = async (foodId) => {
+        const item = inventory.find(i => i.foodId === foodId);
+        if (!item || item.foodStock <= 0) {
+            setAlert({ type: 'warning', message: 'No tienes este alimento en tu inventario.' });
+            return;
+        }
+
+        try {
+            const response = await axios.post(`${API_BASE_URL}api/feedPet/${globalData.clientId}`, { foodId });
+            await updateFoodPercentage(response.data.foodPercentage || 10);
+            await updateCoins(-item.food_price * 0.1); // Ajustar según lógica de costo
+            await fetchInventory();
+            setAlert({ type: 'success', message: '¡Tu mascota ha sido alimentada!' });
+        } catch (error) {
+            console.error('Error feeding pet:', error);
+            setAlert({ type: 'error', message: 'Error al alimentar. Intenta de nuevo.' });
+        }
+    };
+
+    if (!fontsLoaded) return null;
 
     return (
         <SafeAreaView style={styles.container} onLayout={onLayoutRootView}>
@@ -107,12 +152,21 @@ export default function FoodRoomScreen(props) {
 
                 <View style={styles.containerInventary}>
                     <View style={styles.containerButtonAlimentar}>
-                        <Pressable style={styles.buttonAlimentar}>
+                        <Pressable 
+                            style={styles.buttonAlimentar}
+                            onPress={() => {
+                                if (inventory.length === 0 || !inventory[indice]?.foodStock > 0) {
+                                    setAlert({ type: 'warning', message: 'No tienes alimentos para alimentar.' });
+                                    return;
+                                }
+                                handleFeed(inventory[indice].foodId);
+                            }}
+                        >
                             <Text style={styles.textButtonAlimentar}>Alimentar</Text>
                         </Pressable>
                     </View>
                     <View style={styles.containerFood}>
-                        <InventaryList />
+                        <InventaryList inventory={inventory} onFeed={handleFeed} />
                         <Text style={styles.textFood}>Almacén</Text>
                     </View>
                 </View>

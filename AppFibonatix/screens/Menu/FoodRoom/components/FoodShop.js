@@ -3,7 +3,7 @@ import { View, Text, Pressable, FlatList, Image, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Path } from "react-native-svg";
 import axios from 'axios';
-import { useAppContext } from '../../../assets/context/AppContext';
+import { useAppContext } from '../../../../assets/context/AppContext';
 
 import { styles } from './FoodRoomStyles';
 

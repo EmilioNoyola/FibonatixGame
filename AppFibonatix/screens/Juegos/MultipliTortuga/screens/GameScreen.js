@@ -14,6 +14,11 @@ const { width } = Dimensions.get("window");
 const scale = width / 414;
 
 function GameScreen({ route, navigation }) {
+
+  const [currentGameSessionId, setCurrentGameSessionId] = useState(null);
+  const [isManagingGameSession, setIsManagingGameSession] = useState(false);
+  const gameSessionIdRef = useRef(null);
+
   const { level } = route.params;
   const { clientId, incrementGamePercentage, updateTrophies, updateCoins, decreaseFoodPercentageOnGamePlay, refreshUserData } = useAppContext();
 
@@ -37,6 +42,82 @@ function GameScreen({ route, navigation }) {
 
   const showAlert = (type) => setAlerts({ type, visible: true });
   const hideAlert = () => setAlerts({ ...alerts, visible: false });
+
+  const startGameSession = useCallback(async () => {
+      if (!clientId || isManagingGameSession) return;
+      
+      if (gameSessionIdRef.current) {
+          console.log('Ya existe una sesión de juego activa:', gameSessionIdRef.current);
+          return;
+      }
+      
+      setIsManagingGameSession(true);
+      try {
+          console.log('Iniciando sesión de juego para cliente:', clientId, 'juego: 2');
+          const response = await gameService.startGameSession(clientId, 2);
+          if (response?.session_ID) {
+              gameSessionIdRef.current = response.session_ID;
+              setCurrentGameSessionId(response.session_ID);
+              console.log('Sesión de juego iniciada exitosamente:', response.session_ID);
+          } else {
+              console.error('No se recibió session_ID en la respuesta:', response);
+          }
+      } catch (error) {
+          console.error('Error al iniciar sesión de juego:', error);
+          gameSessionIdRef.current = null;
+          setCurrentGameSessionId(null);
+      } finally {
+          setIsManagingGameSession(false);
+      }
+  }, [clientId, isManagingGameSession]);
+
+  const endGameSession = useCallback(async () => {
+      const sessionToClose = gameSessionIdRef.current || currentGameSessionId;
+      
+      if (!clientId || !sessionToClose || isManagingGameSession) {
+          console.log('No se puede cerrar sesión de juego:', { 
+              clientId, 
+              sessionToClose, 
+              isManagingGameSession,
+              refValue: gameSessionIdRef.current,
+              stateValue: currentGameSessionId
+          });
+          return false;
+      }
+      
+      setIsManagingGameSession(true);
+      
+      try {
+          console.log('Intentando cerrar sesión de juego:', sessionToClose);
+          
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          
+          const response = await gameService.endGameSession(sessionToClose, clientId);
+          
+          clearTimeout(timeout);
+          
+          console.log('Sesión de juego cerrada exitosamente:', response);
+          
+          gameSessionIdRef.current = null;
+          setCurrentGameSessionId(null);
+          return true;
+      } catch (error) {
+          if (error.name === 'AbortError') {
+              console.log('Timeout al cerrar sesión de juego, pero continuando...');
+              gameSessionIdRef.current = null;
+              setCurrentGameSessionId(null);
+              return true;
+          } else {
+              console.error('Error al cerrar sesión de juego:', error);
+              gameSessionIdRef.current = null;
+              setCurrentGameSessionId(null);
+              return false;
+          }
+      } finally {
+          setIsManagingGameSession(false);
+      }
+  }, [clientId, currentGameSessionId, isManagingGameSession]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -82,20 +163,21 @@ function GameScreen({ route, navigation }) {
   }, [level, clientId]);
 
   const startGame = async () => {
-    try {
-      if (!clientId) {
-        throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
+      try {
+          if (!clientId) {
+              throw new Error("No se encontró el ID del cliente. Por favor, inicia sesión nuevamente.");
+          }
+          await decreaseFoodPercentageOnGamePlay();
+          await startGameSession(); // Inicia la sesión de juego
+          setIsTimerRunning(true);
+          if (level === 1) {
+              await AsyncStorage.setItem("hasPlayedMultipliBefore", "true");
+          }
+          setWrongAttempts(0);
+      } catch (error) {
+          console.error("Error al iniciar partida:", error.message);
+          showAlert("Error");
       }
-      await decreaseFoodPercentageOnGamePlay();
-      setIsTimerRunning(true);
-      if (level === 1) {
-        await AsyncStorage.setItem("hasPlayedMultipliBefore", "true");
-      }
-      setWrongAttempts(0); // Reiniciar intentos fallidos al empezar
-    } catch (error) {
-      console.error("Error al iniciar partida:", error.message);
-      showAlert("Error");
-    }
   };
 
   function generateCards(level) {
@@ -226,6 +308,9 @@ function GameScreen({ route, navigation }) {
         throw new Error("No se encontró el ID del cliente. No se puede actualizar el progreso.");
       }
 
+      // Cerrar sesión de juego primero
+      await endGameSession();
+
       const gameProgress = await gameService.getGameProgress(clientId);
       const multipliProgress = gameProgress.find(game => game.game_ID === 2);
 
@@ -286,6 +371,17 @@ function GameScreen({ route, navigation }) {
       showAlert("Error");
     }
   };
+
+  // Agrega useEffect para manejar el ciclo de vida de la sesión de juego
+  useEffect(() => {
+      return () => {
+          // Limpieza al desmontar el componente
+          if (gameSessionIdRef.current && clientId) {
+              console.log('Limpieza final - cerrando sesión de juego');
+              endGameSession().catch(console.error);
+          }
+      };
+  }, [clientId]);
 
   const checkOrder = () => {
     const correctOrder = Array.from({ length: 10 }, (_, i) => (i + 1) * level);

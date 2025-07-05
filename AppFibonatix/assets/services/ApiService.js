@@ -138,6 +138,30 @@ export const globalDataService = {
 };
 
 export const gameService = {
+    startGameSession: async (clientId, gameId) => {
+        try {
+            const response = await api.post('/api/startGameSession', { 
+                client_ID: clientId, 
+                game_ID: gameId 
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error al iniciar sesión de juego:', error);
+            throw error;
+        }
+    },
+    endGameSession: async (sessionId, clientId) => {
+        try {
+            const response = await api.post('/api/endGameSession', { 
+                session_ID: sessionId,
+                client_ID: clientId
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error al finalizar sesión de juego:', error);
+            throw error;
+        }
+    },
     getGames: async () => {
         try {
             const response = await api.get('/api/games');
